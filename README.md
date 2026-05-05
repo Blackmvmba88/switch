@@ -128,6 +128,15 @@ Nota: `XOutput.exe` es un binario de terceros. Para un repo privado local se pue
 
 XOutput y ViGEm son tecnologia Windows. En macOS no existe el mismo flujo `ViGEm -> Xbox 360 virtual controller`.
 
+## Mac Quick Start
+
+1. Conecta el control al Mac por USB.
+2. Abre Steam y prueba Steam Input primero.
+3. Usa `docs/controller-mapping.md` como mapa obligatorio.
+4. Configura el control como layout tipo Xbox 360.
+5. Verifica botones A/B/X/Y, LB/RB, LT/RT, sticks y D-Pad.
+6. Si `L2 / LT` aparece presionado en reposo, invierte ese eje/gatillo.
+
 La fuente de verdad del mapeo esta aqui:
 
 ```text
@@ -165,6 +174,12 @@ docs/macos-migration.md
 - Si se desinstala Nefarius Virtual Gamepad Emulation Bus, XOutput puede abrir pero no crear el control virtual.
 - Si otro mapper esta activo al mismo tiempo, puede haber doble input.
 - En macOS no se puede asumir compatibilidad directa con `settings.json`.
+
+## Controles Probados
+
+| Control | VID | PID | Windows | macOS |
+|---|---|---|---|---|
+| Rock Candy Wired Controller for Nintendo Switch | `0E6F` | `0187` | OK con XOutput + ViGEm | Pendiente de validacion fisica; usar `docs/controller-mapping.md`. |
 
 ## Regla Operativa
 

@@ -1,4 +1,29 @@
-# Release v0.1.0
+# Releases
+
+## v0.1.1
+
+### Nombre
+
+XOutput Portable - Definitive Controller Mapping
+
+### Objetivo
+
+Marcar como fuente de verdad el mapeo funcional del control para que pueda replicarse en macOS con la menor ambiguedad posible.
+
+### Cambios
+
+- Agregado `docs/controller-mapping.md` con tabla definitiva de botones, ejes, gatillos y D-Pad.
+- Agregado Mac Quick Start al `README.md`.
+- Agregada matriz de controles probados.
+- Documentado que `L2 / LT` esta invertido en el perfil Windows y debe revisarse en Mac.
+
+### Compatibilidad
+
+Windows: funcional validado.
+
+macOS: pendiente de prueba fisica; la configuracion debe reconstruirse siguiendo `docs/controller-mapping.md`.
+
+## v0.1.0
 
 ## Nombre
 
@@ -49,4 +74,3 @@ En Windows se valido:
 ## Riesgo Principal
 
 Si el GUID del control cambia en otra maquina, puede ser necesario remapear o ajustar `settings.json`.
-
