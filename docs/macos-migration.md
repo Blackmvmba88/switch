@@ -27,6 +27,14 @@ macOS:
 
 ## Estrategia Recomendada
 
+Antes de usar cualquier herramienta, abrir la fuente de verdad del mapeo:
+
+```text
+docs/controller-mapping.md
+```
+
+Ese archivo define el layout que debe replicarse: el control fisico de Nintendo Switch debe quedar equivalente a un control Xbox 360.
+
 ### Opcion 1: Steam Input
 
 Mejor primera ruta si el juego esta en Steam.
@@ -100,6 +108,12 @@ Mapa funcional: settings.json
 5. Crear un perfil equivalente.
 6. Si no hay soporte suficiente, evaluar mapper dedicado.
 
+La validacion debe compararse contra:
+
+```text
+docs/controller-mapping.md
+```
+
 ## Resultado Esperado
 
 El objetivo no es portar XOutput literalmente. El objetivo es replicar el comportamiento:
@@ -107,4 +121,3 @@ El objetivo no es portar XOutput literalmente. El objetivo es replicar el compor
 ```text
 Que el control de Nintendo Switch sea reconocido correctamente por juegos en macOS.
 ```
-

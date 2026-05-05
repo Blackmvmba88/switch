@@ -36,6 +36,7 @@ C:\Users\BlackMamba\Desktop\XOutput.exe - Acceso directo.lnk
 | `XOutput.log` | Log local de ejecucion. No se versiona porque cambia constantemente. |
 | `scripts/check-windows-xoutput.ps1` | Diagnostico rapido para confirmar proceso, driver, dispositivo y archivos. |
 | `scripts/backup-settings.ps1` | Crea respaldos fechados de `settings.json`. |
+| `docs/controller-mapping.md` | Mapeo definitivo que debe replicarse en macOS. |
 | `docs/macos-migration.md` | Plan tecnico para migrar o replicar el objetivo en macOS. |
 
 ## Hardware Detectado
@@ -127,6 +128,14 @@ Nota: `XOutput.exe` es un binario de terceros. Para un repo privado local se pue
 
 XOutput y ViGEm son tecnologia Windows. En macOS no existe el mismo flujo `ViGEm -> Xbox 360 virtual controller`.
 
+La fuente de verdad del mapeo esta aqui:
+
+```text
+docs/controller-mapping.md
+```
+
+Ese documento indica exactamente como esta programado este control y como debe reconstruirse en Mac.
+
 Objetivo correcto para macOS:
 
 ```text
@@ -161,3 +170,4 @@ docs/macos-migration.md
 
 `settings.json` es el activo principal. Antes de editarlo, hacer backup. Si algo deja de funcionar, restaurar el ultimo backup conocido.
 
+Para portar a Mac, no cambiar el layout por intuicion. Replicar primero `docs/controller-mapping.md` y despues ajustar solo si una herramienta de macOS reporta ejes invertidos.
