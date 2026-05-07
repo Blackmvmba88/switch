@@ -44,7 +44,7 @@ async function main() {
 
   const targetsBefore = await (await fetch(`http://127.0.0.1:${debugPort}/json`)).json();
   let created = "";
-  let existing = targetsBefore.find((item) => item.type === "page" && /xbox\\.com/.test(item.url || ""));
+  let existing = targetsBefore.find((item) => item.type === "page" && /xbox\.com/.test(item.url || ""));
 
   if (reuseExisting || verifyOnly) {
     created = existing?.id || "";
@@ -62,7 +62,7 @@ async function main() {
     const targets = await (await fetch(`http://127.0.0.1:${debugPort}/json`)).json();
     target = created
       ? targets.find((item) => item.id === created)
-      : targets.find((item) => item.type === "page" && /xbox\\.com/.test(item.url || ""));
+      : targets.find((item) => item.type === "page" && /xbox\.com/.test(item.url || ""));
     if (target?.webSocketDebuggerUrl) break;
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
@@ -85,6 +85,10 @@ async function main() {
             mapping: g.mapping,
             buttons: g.buttons.length,
             axes: g.axes.length,
+            lx: Number(g.axes[0] || 0).toFixed(3),
+            ly: Number(g.axes[1] || 0).toFixed(3),
+            rx: Number(g.axes[2] || 0).toFixed(3),
+            ry: Number(g.axes[3] || 0).toFixed(3),
             b0: g.buttons[0]?.value || 0,
             b1: g.buttons[1]?.value || 0,
             start: g.buttons[9]?.value || 0,

@@ -4,6 +4,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEBUG_PORT="${DEBUG_PORT:-9224}"
 APP_STATUS="${HOME}/Library/Application Support/BlackMambaInput/reports/live-status.json"
+APP_HID_PID_FILE="${HOME}/Library/Application Support/BlackMambaInput/logs/hid-live-source.pid"
+HID_BIN="${ROOT}/.tmp-runtime-test/hid-live-source"
+HID_PID_FILE="${ROOT}/logs/hid-live-source.pid"
 
 usage() {
   cat <<'HELP'
@@ -13,9 +16,11 @@ Uso:
   ./bmctl play              Abre xCloud con puente CDP + HID source
   ./bmctl reinject          Reinyecta el Xbox bridge en la pestaña actual de xCloud
   ./bmctl verify            Verifica si xCloud ve Xbox 360 virtual standard
+  ./bmctl axes              Muestra LX/LY/RX/RY en vivo desde xCloud
   ./bmctl status            Estado live-monitor + HID source + xCloud tab
   ./bmctl doctor            Diagnóstico HID/xCloud compatibility
   ./bmctl hid               Arranca fuente nativa HID -> live-monitor
+  ./bmctl install-hid-agent Instala LaunchAgent persistente para HID
   ./bmctl stop-hid          Detiene fuente nativa HID
   ./bmctl lab               Abre el laboratorio visual de gamepad
   ./bmctl test              Corre pruebas offline/live smoke
@@ -44,13 +49,26 @@ case "${1:-help}" in
   verify|verifica)
     VERIFY_ONLY=1 node "${ROOT}/runtime/inject-bridge-cdp.js" "${DEBUG_PORT}"
     ;;
+  axes|palancas)
+    "${ROOT}/start-hid-live-source.sh"
+    node "${ROOT}/runtime/watch-virtual-axes.js" "${DEBUG_PORT}" "${DURATION_MS:-15000}"
+    ;;
   status)
     echo "== live status =="
     if [[ -f "${APP_STATUS}" ]]; then sed -n '1,160p' "${APP_STATUS}"; else echo "sin live-status"; fi
     echo
     echo "== hid source =="
-    if [[ -f "${ROOT}/logs/hid-live-source.pid" ]] && kill -0 "$(cat "${ROOT}/logs/hid-live-source.pid")" >/dev/null 2>&1; then
-      echo "hid-live-source running pid=$(cat "${ROOT}/logs/hid-live-source.pid")"
+    HID_PID=""
+    if [[ -f "${APP_HID_PID_FILE}" ]] && kill -0 "$(cat "${APP_HID_PID_FILE}")" >/dev/null 2>&1; then
+      HID_PID="$(cat "${APP_HID_PID_FILE}")"
+    elif [[ -f "${HID_PID_FILE}" ]] && kill -0 "$(cat "${HID_PID_FILE}")" >/dev/null 2>&1; then
+      HID_PID="$(cat "${HID_PID_FILE}")"
+    else
+      HID_PID="$(pgrep -f "[.]tmp-runtime-test/hid-live-source" | head -n 1 || true)"
+      [[ -n "${HID_PID}" ]] && echo "${HID_PID}" > "${HID_PID_FILE}"
+    fi
+    if [[ -n "${HID_PID}" ]]; then
+      echo "hid-live-source running pid=${HID_PID}"
     else
       echo "hid-live-source stopped"
     fi
@@ -63,6 +81,9 @@ case "${1:-help}" in
     ;;
   hid)
     "${ROOT}/start-hid-live-source.sh"
+    ;;
+  install-hid-agent)
+    "${ROOT}/install-hid-live-source-agent.sh"
     ;;
   stop-hid)
     "${ROOT}/stop-hid-live-source.sh"

@@ -47,21 +47,72 @@
       "from": 1.286,
       "to": -0.429,
       "delta": -1.715
+    },
+    "LX": {
+      "source": "A0",
+      "kind": "axis",
+      "index": 0,
+      "confidence": 0.85,
+      "from": 0,
+      "to": 1,
+      "delta": 1
+    },
+    "LY": {
+      "source": "A1",
+      "kind": "axis",
+      "index": 1,
+      "confidence": 0.85,
+      "from": 0,
+      "to": 1,
+      "delta": 1
+    },
+    "RX": {
+      "source": "A2",
+      "kind": "axis",
+      "index": 2,
+      "confidence": 0.85,
+      "from": 0,
+      "to": 1,
+      "delta": 1
+    },
+    "RY": {
+      "source": "A3",
+      "kind": "axis",
+      "index": 3,
+      "confidence": 0.85,
+      "from": 0,
+      "to": 1,
+      "delta": 1
     }
   },
   "ranges": {
     "A0": [
-      -0.98,
-      0.97
+      -1,
+      1
     ],
     "A9": [
       -1.0,
       1.286
+    ],
+    "A1": [
+      -1,
+      1
+    ],
+    "A2": [
+      -1,
+      1
+    ],
+    "A3": [
+      -1,
+      1
     ]
   },
   "deadzones": {
-    "A0": 0.35,
-    "A9": 0.35
+    "A0": 0.08,
+    "A9": 0.35,
+    "A1": 0.08,
+    "A2": 0.08,
+    "A3": 0.08
   },
   "dpad": {
     "type": "hat-axis",

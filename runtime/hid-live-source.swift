@@ -68,8 +68,8 @@ final class HIDLiveSource: NSObject, URLSessionWebSocketDelegate {
       switch usage {
       case 0x30: axes[0] = normalizeAxis(intValue, logicalMin, logicalMax)
       case 0x31: axes[1] = normalizeAxis(intValue, logicalMin, logicalMax)
-      case 0x32: axes[2] = normalizeAxis(intValue, logicalMin, logicalMax)
-      case 0x35: axes[3] = normalizeAxis(intValue, logicalMin, logicalMax)
+      case 0x32, 0x33: axes[2] = normalizeAxis(intValue, logicalMin, logicalMax)
+      case 0x34, 0x35: axes[3] = normalizeAxis(intValue, logicalMin, logicalMax)
       case 0x39: axes[9] = browserHatValue(intValue)
       default: break
       }
@@ -148,4 +148,3 @@ let deviceDisconnectedCallback: IOHIDDeviceCallback = { _, _, _, device in
 }
 
 HIDLiveSource().start()
-
