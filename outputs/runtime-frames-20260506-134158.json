@@ -1,0 +1,317 @@
+{
+  "protocol": "blackmamba.runtime.trace.v0",
+  "generatedAt": "2026-05-06T19:41:58.721Z",
+  "profile": {
+    "path": "/Users/blackmambarecords/Documents/Codex/2026-04-28/acabo-de-conectar-un-control-ruby/profiles/rock-candy-wired-controller-for-nintendo-switch-vendor-0e6f-product-0187.normalized.json",
+    "device": {
+      "id": "Rock Candy Wired Controller for Nintendo Switch (Vendor: 0e6f Product: 0187)",
+      "mapping": "",
+      "buttons": 14,
+      "axes": 10
+    },
+    "layout": "switch-generic",
+    "controllerFamily": "directinput-like",
+    "dpadMode": "hat-axis",
+    "triggerMode": "buttons"
+  },
+  "source": {
+    "sample": "/Users/blackmambarecords/Documents/Codex/2026-04-28/acabo-de-conectar-un-control-ruby/samples/controller-sample-20260506-113948.json",
+    "sampleCount": 6
+  },
+  "frames": [
+    {
+      "protocol": "blackmamba.runtime.frame.v0",
+      "timestampMs": 0,
+      "buttons": {
+        "A": {
+          "pressed": false,
+          "value": 0,
+          "source": "B0"
+        },
+        "B": {
+          "pressed": false,
+          "value": 0,
+          "source": "B1"
+        },
+        "DPad_Up": {
+          "pressed": false,
+          "value": 1.286,
+          "source": "A9"
+        },
+        "DPad_Right": {
+          "pressed": false,
+          "value": 1.286,
+          "source": "A9"
+        }
+      },
+      "axes": {},
+      "transitions": {
+        "A": {
+          "justPressed": false,
+          "justReleased": false,
+          "heldMs": 0
+        },
+        "B": {
+          "justPressed": false,
+          "justReleased": false,
+          "heldMs": 0
+        },
+        "DPad_Up": {
+          "justPressed": false,
+          "justReleased": false,
+          "heldMs": 0
+        },
+        "DPad_Right": {
+          "justPressed": false,
+          "justReleased": false,
+          "heldMs": 0
+        }
+      }
+    },
+    {
+      "protocol": "blackmamba.runtime.frame.v0",
+      "timestampMs": 50,
+      "buttons": {
+        "A": {
+          "pressed": true,
+          "value": 1,
+          "source": "B0"
+        },
+        "B": {
+          "pressed": false,
+          "value": 0,
+          "source": "B1"
+        },
+        "DPad_Up": {
+          "pressed": false,
+          "value": 1.286,
+          "source": "A9"
+        },
+        "DPad_Right": {
+          "pressed": false,
+          "value": 1.286,
+          "source": "A9"
+        }
+      },
+      "axes": {},
+      "transitions": {
+        "A": {
+          "justPressed": true,
+          "justReleased": false,
+          "heldMs": 50
+        },
+        "B": {
+          "justPressed": false,
+          "justReleased": false,
+          "heldMs": 0
+        },
+        "DPad_Up": {
+          "justPressed": false,
+          "justReleased": false,
+          "heldMs": 0
+        },
+        "DPad_Right": {
+          "justPressed": false,
+          "justReleased": false,
+          "heldMs": 0
+        }
+      }
+    },
+    {
+      "protocol": "blackmamba.runtime.frame.v0",
+      "timestampMs": 100,
+      "buttons": {
+        "A": {
+          "pressed": false,
+          "value": 0,
+          "source": "B0"
+        },
+        "B": {
+          "pressed": true,
+          "value": 1,
+          "source": "B1"
+        },
+        "DPad_Up": {
+          "pressed": false,
+          "value": 1.286,
+          "source": "A9"
+        },
+        "DPad_Right": {
+          "pressed": false,
+          "value": 1.286,
+          "source": "A9"
+        }
+      },
+      "axes": {},
+      "transitions": {
+        "A": {
+          "justPressed": false,
+          "justReleased": true,
+          "heldMs": 0
+        },
+        "B": {
+          "justPressed": true,
+          "justReleased": false,
+          "heldMs": 50
+        },
+        "DPad_Up": {
+          "justPressed": false,
+          "justReleased": false,
+          "heldMs": 0
+        },
+        "DPad_Right": {
+          "justPressed": false,
+          "justReleased": false,
+          "heldMs": 0
+        }
+      }
+    },
+    {
+      "protocol": "blackmamba.runtime.frame.v0",
+      "timestampMs": 150,
+      "buttons": {
+        "A": {
+          "pressed": false,
+          "value": 0,
+          "source": "B0"
+        },
+        "B": {
+          "pressed": false,
+          "value": 0,
+          "source": "B1"
+        },
+        "DPad_Up": {
+          "pressed": true,
+          "value": -1,
+          "source": "A9"
+        },
+        "DPad_Right": {
+          "pressed": false,
+          "value": -1,
+          "source": "A9"
+        }
+      },
+      "axes": {},
+      "transitions": {
+        "A": {
+          "justPressed": false,
+          "justReleased": false,
+          "heldMs": 0
+        },
+        "B": {
+          "justPressed": false,
+          "justReleased": true,
+          "heldMs": 0
+        },
+        "DPad_Up": {
+          "justPressed": true,
+          "justReleased": false,
+          "heldMs": 50
+        },
+        "DPad_Right": {
+          "justPressed": false,
+          "justReleased": false,
+          "heldMs": 0
+        }
+      }
+    },
+    {
+      "protocol": "blackmamba.runtime.frame.v0",
+      "timestampMs": 200,
+      "buttons": {
+        "A": {
+          "pressed": false,
+          "value": 0,
+          "source": "B0"
+        },
+        "B": {
+          "pressed": false,
+          "value": 0,
+          "source": "B1"
+        },
+        "DPad_Up": {
+          "pressed": false,
+          "value": -0.429,
+          "source": "A9"
+        },
+        "DPad_Right": {
+          "pressed": true,
+          "value": -0.429,
+          "source": "A9"
+        }
+      },
+      "axes": {},
+      "transitions": {
+        "A": {
+          "justPressed": false,
+          "justReleased": false,
+          "heldMs": 0
+        },
+        "B": {
+          "justPressed": false,
+          "justReleased": false,
+          "heldMs": 0
+        },
+        "DPad_Up": {
+          "justPressed": false,
+          "justReleased": true,
+          "heldMs": 0
+        },
+        "DPad_Right": {
+          "justPressed": true,
+          "justReleased": false,
+          "heldMs": 50
+        }
+      }
+    },
+    {
+      "protocol": "blackmamba.runtime.frame.v0",
+      "timestampMs": 300,
+      "buttons": {
+        "A": {
+          "pressed": false,
+          "value": 0,
+          "source": "B0"
+        },
+        "B": {
+          "pressed": false,
+          "value": 0,
+          "source": "B1"
+        },
+        "DPad_Up": {
+          "pressed": false,
+          "value": 1.286,
+          "source": "A9"
+        },
+        "DPad_Right": {
+          "pressed": false,
+          "value": 1.286,
+          "source": "A9"
+        }
+      },
+      "axes": {},
+      "transitions": {
+        "A": {
+          "justPressed": false,
+          "justReleased": false,
+          "heldMs": 0
+        },
+        "B": {
+          "justPressed": false,
+          "justReleased": false,
+          "heldMs": 0
+        },
+        "DPad_Up": {
+          "justPressed": false,
+          "justReleased": false,
+          "heldMs": 0
+        },
+        "DPad_Right": {
+          "justPressed": false,
+          "justReleased": true,
+          "heldMs": 0
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "id": "mayflash-xinput-adapter",
+  "name": "Mayflash adapter in XInput mode",
+  "vendorId": "unknown",
+  "productId": "unknown",
+  "transport": "USB",
+  "aliases": [
+    "Mayflash",
+    "MAGIC-NS",
+    "MAGIC-X",
+    "XInput",
+    "Xbox 360"
+  ],
+  "targets": {
+    "xcloud": "expected",
+    "geforceNow": "expected",
+    "steamInput": true,
+    "browserGamepadApi": true
+  },
+  "knownGood": {
+    "macosHid": "expected",
+    "browserGamepadApi": "expected",
+    "xcloudDirect": "expected",
+    "steamInput": true,
+    "safariXcloud": "expected"
+  },
+  "classification": {
+    "xinputIdentity": true,
+    "cloudGamingReady": "expected",
+    "recommendedPath": "Put the adapter in XInput/Xbox mode, then validate with controller-doctor and xCloud."
+  },
+  "notes": [
+    "Use this as an expected hardware-translation baseline until a specific VID/PID is observed.",
+    "If xCloud still fails, capture a live report and add a more specific signature."
+  ]
+}

@@ -1,0 +1,817 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gamepad test</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #101318;
+      color: #eef3f7;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    main {
+      width: min(960px, 100%);
+      display: grid;
+      gap: 18px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(28px, 4vw, 48px);
+      letter-spacing: 0;
+    }
+
+    .status {
+      padding: 16px;
+      border: 1px solid #2c3642;
+      border-radius: 8px;
+      background: #171c23;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    button {
+      min-height: 40px;
+      padding: 0 14px;
+      border: 1px solid #36516e;
+      border-radius: 8px;
+      background: #1c2835;
+      color: #eef3f7;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+    }
+
+    button.active {
+      border-color: #4fb477;
+      background: #153422;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+    }
+
+    .step-list {
+      display: grid;
+      gap: 6px;
+      margin-top: 12px;
+    }
+
+    .step-row {
+      padding: 10px 12px;
+      border: 1px solid #2f3a48;
+      border-radius: 8px;
+      background: #151a20;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .step-row.current {
+      border-color: #9cc9ff;
+      background: #17273a;
+    }
+
+    .step-row.done {
+      border-color: #4fb477;
+      background: #153422;
+    }
+
+    .pill {
+      min-height: 44px;
+      padding: 10px 12px;
+      border: 1px solid #2f3a48;
+      border-radius: 8px;
+      background: #151a20;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .pressed {
+      border-color: #4fb477;
+      background: #153422;
+      color: #e8fff1;
+    }
+
+    .warning {
+      border-color: #b49d4f;
+      background: #2f2815;
+    }
+
+    code {
+      color: #9cc9ff;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 220px;
+      resize: vertical;
+      box-sizing: border-box;
+      border: 1px solid #2c3642;
+      border-radius: 8px;
+      background: #0f141a;
+      color: #dbe8f5;
+      padding: 12px;
+      font: 13px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      line-height: 1.45;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Gamepad test</h1>
+    <section class="status">
+      <strong id="state">Conecta o presiona un boton del control.</strong>
+      <p><code id="meta">Esperando Gamepad API...</code></p>
+    </section>
+    <section class="status">
+      <h2>Live runtime</h2>
+      <div class="toolbar">
+        <button id="connectLive">Connect live monitor</button>
+        <button id="disconnectLive" disabled>Disconnect</button>
+      </div>
+      <p><code id="liveStatus">WebSocket no conectado.</code></p>
+    </section>
+    <section class="status">
+      <h2>Captura de sesion</h2>
+      <div class="toolbar">
+        <button id="startCapture">Start capture</button>
+        <button id="stopCapture" disabled>Stop</button>
+        <button id="clearCapture">Clear</button>
+        <button id="downloadCapture" disabled>Download JSON</button>
+      </div>
+      <p><code id="captureStatus">Sin captura activa.</code></p>
+    </section>
+    <section class="status">
+      <h2>Calibracion guiada</h2>
+      <div class="toolbar">
+        <button id="startCalibration">Start calibration</button>
+        <button id="captureStep" disabled>Capture step</button>
+        <button id="skipStep" disabled>Skip</button>
+        <button id="resetCalibration">Reset</button>
+      </div>
+      <p><code id="calibrationStatus">Sin calibracion activa.</code></p>
+      <div id="calibrationSteps" class="step-list"></div>
+    </section>
+    <section>
+      <h2>Botones</h2>
+      <div id="buttons" class="grid"></div>
+    </section>
+    <section>
+      <h2>Ejes</h2>
+      <div id="axes" class="grid"></div>
+    </section>
+    <section>
+      <h2>Cruceta / Hat</h2>
+      <div id="hat" class="grid"></div>
+    </section>
+    <section>
+      <h2>Perfil inferido</h2>
+      <textarea id="profileOutput" spellcheck="false" readonly>{}</textarea>
+    </section>
+    <section>
+      <h2>Perfil normalizado</h2>
+      <textarea id="normalizedOutput" spellcheck="false" readonly>{}</textarea>
+    </section>
+  </main>
+  <script>
+    const state = document.querySelector("#state");
+    const meta = document.querySelector("#meta");
+    const buttons = document.querySelector("#buttons");
+    const axes = document.querySelector("#axes");
+    const hat = document.querySelector("#hat");
+    const startCapture = document.querySelector("#startCapture");
+    const stopCapture = document.querySelector("#stopCapture");
+    const clearCapture = document.querySelector("#clearCapture");
+    const downloadCapture = document.querySelector("#downloadCapture");
+    const captureStatus = document.querySelector("#captureStatus");
+    const profileOutput = document.querySelector("#profileOutput");
+    const connectLive = document.querySelector("#connectLive");
+    const disconnectLive = document.querySelector("#disconnectLive");
+    const liveStatus = document.querySelector("#liveStatus");
+    const startCalibration = document.querySelector("#startCalibration");
+    const captureStep = document.querySelector("#captureStep");
+    const skipStep = document.querySelector("#skipStep");
+    const resetCalibration = document.querySelector("#resetCalibration");
+    const calibrationStatus = document.querySelector("#calibrationStatus");
+    const calibrationSteps = document.querySelector("#calibrationSteps");
+    const normalizedOutput = document.querySelector("#normalizedOutput");
+
+    const capture = {
+      active: false,
+      startedAt: null,
+      stoppedAt: null,
+      lastSampleAt: 0,
+      samples: [],
+      device: null
+    };
+
+    const calibrationPlan = [
+      { id: "A", label: "Press A", type: "button" },
+      { id: "B", label: "Press B", type: "button" },
+      { id: "X", label: "Press X", type: "button" },
+      { id: "Y", label: "Press Y", type: "button" },
+      { id: "LB", label: "Press L1 / LB", type: "button" },
+      { id: "RB", label: "Press R1 / RB", type: "button" },
+      { id: "LT", label: "Pull L2 / LT", type: "trigger" },
+      { id: "RT", label: "Pull R2 / RT", type: "trigger" },
+      { id: "Back", label: "Press Back / Select", type: "button" },
+      { id: "Start", label: "Press Start / Menu", type: "button" },
+      { id: "L3", label: "Press left stick / L3", type: "button" },
+      { id: "R3", label: "Press right stick / R3", type: "button" },
+      { id: "Guide", label: "Press Home / Guide", type: "button" },
+      { id: "LS_Left", label: "Move left stick left", type: "axis" },
+      { id: "LS_Right", label: "Move left stick right", type: "axis" },
+      { id: "LS_Up", label: "Move left stick up", type: "axis" },
+      { id: "LS_Down", label: "Move left stick down", type: "axis" },
+      { id: "RS_Left", label: "Move right stick left", type: "axis" },
+      { id: "RS_Right", label: "Move right stick right", type: "axis" },
+      { id: "RS_Up", label: "Move right stick up", type: "axis" },
+      { id: "RS_Down", label: "Move right stick down", type: "axis" },
+      { id: "DPad_Up", label: "Press D-Pad up", type: "dpad" },
+      { id: "DPad_Down", label: "Press D-Pad down", type: "dpad" },
+      { id: "DPad_Left", label: "Press D-Pad left", type: "dpad" },
+      { id: "DPad_Right", label: "Press D-Pad right", type: "dpad" }
+    ];
+
+    const calibration = {
+      active: false,
+      index: 0,
+      baseline: null,
+      results: []
+    };
+
+    const live = {
+      socket: null,
+      enabled: false,
+      connected: false,
+      sentFrames: 0,
+      lastFrameAt: null,
+      lastEvent: "",
+      reconnectTimer: null,
+      lastSendAt: 0,
+      url: "ws://127.0.0.1:8137/live"
+    };
+
+    const hatDirections = [
+      { value: -1.000, label: "Up", buttons: ["Up"] },
+      { value: -0.714, label: "Up + Right", buttons: ["Up", "Right"] },
+      { value: -0.429, label: "Right", buttons: ["Right"] },
+      { value: -0.143, label: "Down + Right", buttons: ["Down", "Right"] },
+      { value: 0.143, label: "Down", buttons: ["Down"] },
+      { value: 0.429, label: "Down + Left", buttons: ["Down", "Left"] },
+      { value: 0.714, label: "Left", buttons: ["Left"] },
+      { value: 1.000, label: "Up + Left", buttons: ["Up", "Left"] },
+      { value: 1.286, label: "Neutral", buttons: [] }
+    ];
+
+    function decodeHat(value) {
+      if (!Number.isFinite(value)) {
+        return { label: "No A9", buttons: [], value: null };
+      }
+
+      let best = hatDirections[0];
+      let bestDistance = Math.abs(value - best.value);
+      for (const option of hatDirections) {
+        const distance = Math.abs(value - option.value);
+        if (distance < bestDistance) {
+          best = option;
+          bestDistance = distance;
+        }
+      }
+
+      return { ...best, raw: value, distance: bestDistance };
+    }
+
+    function round(value, digits = 3) {
+      return Number(value.toFixed(digits));
+    }
+
+    function uniqueSorted(values) {
+      return [...new Set(values.map((value) => round(value)))].sort((a, b) => a - b);
+    }
+
+    function snapshotPad(pad) {
+      return {
+        t: round(performance.now(), 1),
+        buttons: pad.buttons.map((button) => ({
+          pressed: button.pressed,
+          touched: button.touched,
+          value: round(button.value)
+        })),
+        axes: pad.axes.map((axis) => round(axis))
+      };
+    }
+
+    function refreshLiveUi() {
+      connectLive.disabled = live.connected || live.enabled;
+      disconnectLive.disabled = !live.enabled;
+      connectLive.classList.toggle("active", live.connected);
+      liveStatus.textContent = [
+        `enabled: ${live.enabled}`,
+        `connected: ${live.connected}`,
+        `url: ${live.url}`,
+        `sentFrames: ${live.sentFrames}`,
+        live.lastFrameAt ? `lastFrame: ${live.lastFrameAt}` : null,
+        live.lastEvent ? `lastEvent: ${live.lastEvent}` : null
+      ].filter(Boolean).join("\\n");
+    }
+
+    function connectLiveMonitor() {
+      live.enabled = true;
+      clearTimeout(live.reconnectTimer);
+
+      if (live.socket && [WebSocket.CONNECTING, WebSocket.OPEN].includes(live.socket.readyState)) {
+        refreshLiveUi();
+        return;
+      }
+
+      try {
+        live.socket = new WebSocket(live.url);
+      } catch (error) {
+        live.lastEvent = `connect error: ${error.message}`;
+        scheduleLiveReconnect();
+        refreshLiveUi();
+        return;
+      }
+
+      live.socket.addEventListener("open", () => {
+        live.connected = true;
+        live.lastEvent = "runtime connected";
+        live.socket.send(JSON.stringify({ type: "heartbeat", at: new Date().toISOString() }));
+        refreshLiveUi();
+      });
+
+      live.socket.addEventListener("message", (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          if (message.type === "semantic-events" && message.events?.length) {
+            live.lastEvent = message.events.map((item) => `${item.name}:${item.event}:${item.source}`).join(", ");
+          } else {
+            live.lastEvent = message.type || "message";
+          }
+        } catch {
+          live.lastEvent = "message";
+        }
+        refreshLiveUi();
+      });
+
+      live.socket.addEventListener("close", () => {
+        live.connected = false;
+        live.lastEvent = "runtime disconnected; reconnect armed";
+        refreshLiveUi();
+        scheduleLiveReconnect();
+      });
+
+      live.socket.addEventListener("error", () => {
+        live.lastEvent = "runtime socket error";
+        refreshLiveUi();
+      });
+
+      refreshLiveUi();
+    }
+
+    function scheduleLiveReconnect() {
+      clearTimeout(live.reconnectTimer);
+      if (!live.enabled) {
+        return;
+      }
+      live.reconnectTimer = setTimeout(connectLiveMonitor, 1000);
+    }
+
+    function disconnectLiveMonitor() {
+      live.enabled = false;
+      clearTimeout(live.reconnectTimer);
+      if (live.socket) {
+        live.socket.close();
+      }
+      live.socket = null;
+      live.connected = false;
+      live.lastEvent = "runtime manually disconnected";
+      refreshLiveUi();
+    }
+
+    function sendLiveFrame(pad) {
+      const now = performance.now();
+      if (!live.enabled || !live.connected || !live.socket || live.socket.readyState !== WebSocket.OPEN) {
+        return;
+      }
+
+      if (now - live.lastSendAt < 33) {
+        return;
+      }
+
+      live.lastSendAt = now;
+      live.sentFrames += 1;
+      live.lastFrameAt = new Date().toISOString();
+      live.socket.send(JSON.stringify({
+        type: "browser-frame",
+        device: {
+          id: pad.id,
+          index: pad.index,
+          mapping: pad.mapping || "",
+          buttons: pad.buttons.length,
+          axes: pad.axes.length
+        },
+        sample: snapshotPad(pad)
+      }));
+
+      if (live.sentFrames % 30 === 0) {
+        refreshLiveUi();
+      }
+    }
+
+    function findStrongestDelta(before, after) {
+      const candidates = [];
+      const buttonCount = Math.max(before?.buttons?.length ?? 0, after.buttons.length);
+      const axisCount = Math.max(before?.axes?.length ?? 0, after.axes.length);
+
+      for (let index = 0; index < buttonCount; index += 1) {
+        const previous = before?.buttons?.[index]?.value ?? 0;
+        const current = after.buttons[index]?.value ?? 0;
+        const delta = round(current - previous);
+        candidates.push({
+          control: `B${index}`,
+          kind: "button",
+          index,
+          previous,
+          current,
+          delta,
+          magnitude: Math.abs(delta),
+          confidence: Math.min(0.99, Math.abs(delta))
+        });
+      }
+
+      for (let index = 0; index < axisCount; index += 1) {
+        const previous = before?.axes?.[index] ?? 0;
+        const current = after.axes[index] ?? 0;
+        const delta = round(current - previous);
+        candidates.push({
+          control: `A${index}`,
+          kind: "axis",
+          index,
+          previous,
+          current,
+          delta,
+          magnitude: Math.abs(delta),
+          confidence: Math.min(0.99, Math.abs(delta))
+        });
+      }
+
+      return candidates.sort((a, b) => b.magnitude - a.magnitude)[0] ?? null;
+    }
+
+    function getCurrentPad() {
+      return navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean)[0] : null;
+    }
+
+    function normalizedProfile() {
+      const semantic = {};
+      for (const result of calibration.results) {
+        if (result.skipped || !result.best) {
+          continue;
+        }
+        semantic[result.id] = {
+          source: result.best.control,
+          kind: result.best.kind,
+          index: result.best.index,
+          confidence: round(result.best.confidence, 2),
+          from: result.best.previous,
+          to: result.best.current,
+          delta: result.best.delta
+        };
+      }
+
+      return {
+        generatedAt: new Date().toISOString(),
+        device: capture.device,
+        controllerFamily: "directinput-like",
+        layout: "calibrated",
+        dpadMode: semantic.DPad_Up?.source?.startsWith("A") ? "hat-axis" : "buttons",
+        triggerMode: [semantic.LT, semantic.RT].some((item) => item?.kind === "axis") ? "axis" : "buttons",
+        semantic
+      };
+    }
+
+    function summarizeSamples() {
+      const samples = capture.samples;
+      if (!samples.length) {
+        return {
+          generatedAt: new Date().toISOString(),
+          sampleCount: 0,
+          profile: {}
+        };
+      }
+
+      const axisCount = Math.max(...samples.map((sample) => sample.axes.length));
+      const buttonCount = Math.max(...samples.map((sample) => sample.buttons.length));
+      const axesSummary = {};
+      const buttonSummary = {};
+
+      for (let index = 0; index < axisCount; index += 1) {
+        const values = samples.map((sample) => sample.axes[index]).filter(Number.isFinite);
+        const states = uniqueSorted(values);
+        const min = round(Math.min(...values));
+        const max = round(Math.max(...values));
+        const neutral = states.reduce((best, value) => {
+          return Math.abs(value) < Math.abs(best) ? value : best;
+        }, states[0] ?? 0);
+        axesSummary[`A${index}`] = {
+          min,
+          max,
+          neutral,
+          states,
+          likelyHat: states.length >= 5 && states.length <= 12,
+          likelyAnalog: states.length > 12
+        };
+      }
+
+      for (let index = 0; index < buttonCount; index += 1) {
+        const values = samples.map((sample) => sample.buttons[index]?.value ?? 0);
+        const pressedCount = samples.filter((sample) => sample.buttons[index]?.pressed).length;
+        buttonSummary[`B${index}`] = {
+          states: uniqueSorted(values),
+          pressedCount,
+          observedPressed: pressedCount > 0
+        };
+      }
+
+      const a9States = axesSummary.A9?.states ?? [];
+      const dpad = a9States.length ? {
+        type: "hat-axis",
+        axis: 9,
+        observedStates: a9States,
+        decodedStates: Object.fromEntries(
+          hatDirections.map((direction) => [direction.label, direction.value])
+        )
+      } : null;
+
+      return {
+        generatedAt: new Date().toISOString(),
+        device: capture.device,
+        sampleCount: samples.length,
+        durationMs: samples.at(-1).t - samples[0].t,
+        profile: {
+          axes: axesSummary,
+          buttons: buttonSummary,
+          dpad
+        },
+        rawSamples: samples
+      };
+    }
+
+    function refreshCaptureUi() {
+      startCapture.disabled = capture.active;
+      stopCapture.disabled = !capture.active;
+      downloadCapture.disabled = capture.samples.length === 0;
+      startCapture.classList.toggle("active", capture.active);
+
+      const profile = summarizeSamples();
+      profileOutput.value = JSON.stringify(profile, null, 2);
+      normalizedOutput.value = JSON.stringify(normalizedProfile(), null, 2);
+      captureStatus.textContent = [
+        `active: ${capture.active}`,
+        `samples: ${capture.samples.length}`,
+        capture.startedAt ? `started: ${capture.startedAt}` : null,
+        capture.stoppedAt ? `stopped: ${capture.stoppedAt}` : null
+      ].filter(Boolean).join("\\n");
+    }
+
+    function recordSample(pad) {
+      const now = performance.now();
+      if (!capture.active || now - capture.lastSampleAt < 50) {
+        return;
+      }
+
+      capture.lastSampleAt = now;
+      capture.device = {
+        id: pad.id,
+        index: pad.index,
+        mapping: pad.mapping || "",
+        buttons: pad.buttons.length,
+        axes: pad.axes.length
+      };
+      capture.samples.push({
+        ...snapshotPad(pad),
+        t: round(now, 1)
+      });
+
+      if (capture.samples.length % 10 === 0) {
+        refreshCaptureUi();
+      }
+    }
+
+    function downloadJson() {
+      const payload = {
+        session: summarizeSamples(),
+        calibration: normalizedProfile()
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {
+        type: "application/json"
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+      link.href = url;
+      link.download = `controller-sample-${stamp}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function refreshCalibrationUi() {
+      startCalibration.disabled = calibration.active;
+      captureStep.disabled = !calibration.active;
+      skipStep.disabled = !calibration.active;
+      const current = calibrationPlan[calibration.index];
+      calibrationStatus.textContent = calibration.active && current
+        ? `current: ${current.label}\\nstep: ${calibration.index + 1}/${calibrationPlan.length}`
+        : `active: ${calibration.active}\\ncompleted: ${calibration.results.length}/${calibrationPlan.length}`;
+
+      calibrationSteps.innerHTML = calibrationPlan.map((step, index) => {
+        const result = calibration.results.find((item) => item.id === step.id);
+        const state = result ? "done" : index === calibration.index && calibration.active ? "current" : "";
+        const detail = result?.skipped ? "skipped" : result?.best ? `${result.best.control} ${result.best.delta}` : "";
+        return `<div class="step-row ${state}">
+          <span>${index + 1}. ${step.label}</span><strong>${detail}</strong>
+        </div>`;
+      }).join("");
+
+      normalizedOutput.value = JSON.stringify(normalizedProfile(), null, 2);
+    }
+
+    function beginCalibration() {
+      const pad = getCurrentPad();
+      if (!pad) {
+        calibrationStatus.textContent = "No hay control visible.";
+        return;
+      }
+      calibration.active = true;
+      calibration.index = 0;
+      calibration.results = [];
+      calibration.baseline = snapshotPad(pad);
+      capture.device = {
+        id: pad.id,
+        index: pad.index,
+        mapping: pad.mapping || "",
+        buttons: pad.buttons.length,
+        axes: pad.axes.length
+      };
+      refreshCalibrationUi();
+      refreshCaptureUi();
+    }
+
+    function captureCurrentStep(skipped = false) {
+      if (!calibration.active) {
+        return;
+      }
+      const step = calibrationPlan[calibration.index];
+      const pad = getCurrentPad();
+      if (!step || !pad) {
+        calibration.active = false;
+        refreshCalibrationUi();
+        return;
+      }
+
+      const after = snapshotPad(pad);
+      const best = skipped ? null : findStrongestDelta(calibration.baseline, after);
+      calibration.results.push({
+        ...step,
+        skipped,
+        best,
+        capturedAt: new Date().toISOString()
+      });
+
+      calibration.baseline = after;
+      calibration.index += 1;
+      if (calibration.index >= calibrationPlan.length) {
+        calibration.active = false;
+      }
+      refreshCalibrationUi();
+      refreshCaptureUi();
+    }
+
+    function resetGuidedCalibration() {
+      calibration.active = false;
+      calibration.index = 0;
+      calibration.baseline = null;
+      calibration.results = [];
+      refreshCalibrationUi();
+      refreshCaptureUi();
+    }
+
+    function render() {
+      const pads = navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : [];
+      const pad = pads[0];
+
+      if (!pad) {
+        state.textContent = "Sin control visible para el navegador. Presiona un boton o reconecta el USB.";
+        requestAnimationFrame(render);
+        return;
+      }
+
+      state.textContent = "Control detectado por el navegador.";
+      sendLiveFrame(pad);
+      recordSample(pad);
+      meta.textContent = [
+        `id: ${pad.id}`,
+        `index: ${pad.index}`,
+        `mapping: ${pad.mapping || "(sin mapping standard)"}`,
+        `buttons: ${pad.buttons.length}`,
+        `axes: ${pad.axes.length}`,
+      ].join("\\n");
+
+      buttons.innerHTML = pad.buttons.map((button, index) => {
+        const value = button.value.toFixed(2);
+        return `<div class="pill ${button.pressed ? "pressed" : ""}">
+          <span>B${index}</span><strong>${button.pressed ? "ON" : value}</strong>
+        </div>`;
+      }).join("");
+
+      axes.innerHTML = pad.axes.map((axis, index) => {
+        const isHat = index === 9;
+        return `<div class="pill ${isHat ? "warning" : ""}">
+          <span>A${index}${isHat ? " / D-Pad" : ""}</span><strong>${axis.toFixed(3)}</strong>
+        </div>`;
+      }).join("");
+
+      const decodedHat = decodeHat(pad.axes[9]);
+      const pressed = new Set(decodedHat.buttons);
+      hat.innerHTML = ["Up", "Right", "Down", "Left"].map((direction) => {
+        return `<div class="pill ${pressed.has(direction) ? "pressed" : ""}">
+          <span>${direction}</span><strong>${pressed.has(direction) ? "ON" : "off"}</strong>
+        </div>`;
+      }).join("") + `<div class="pill warning">
+        <span>A9 decode</span><strong>${decodedHat.label}</strong>
+      </div>`;
+
+      requestAnimationFrame(render);
+    }
+
+    startCapture.addEventListener("click", () => {
+      capture.active = true;
+      capture.startedAt = new Date().toISOString();
+      capture.stoppedAt = null;
+      capture.lastSampleAt = 0;
+      capture.samples = [];
+      refreshCaptureUi();
+    });
+
+    stopCapture.addEventListener("click", () => {
+      capture.active = false;
+      capture.stoppedAt = new Date().toISOString();
+      refreshCaptureUi();
+    });
+
+    clearCapture.addEventListener("click", () => {
+      capture.active = false;
+      capture.startedAt = null;
+      capture.stoppedAt = null;
+      capture.lastSampleAt = 0;
+      capture.samples = [];
+      capture.device = null;
+      refreshCaptureUi();
+    });
+
+    downloadCapture.addEventListener("click", downloadJson);
+    connectLive.addEventListener("click", connectLiveMonitor);
+    disconnectLive.addEventListener("click", disconnectLiveMonitor);
+    startCalibration.addEventListener("click", beginCalibration);
+    captureStep.addEventListener("click", () => captureCurrentStep(false));
+    skipStep.addEventListener("click", () => captureCurrentStep(true));
+    resetCalibration.addEventListener("click", resetGuidedCalibration);
+
+    window.addEventListener("gamepadconnected", render);
+    window.addEventListener("gamepaddisconnected", render);
+    refreshCaptureUi();
+    refreshCalibrationUi();
+    refreshLiveUi();
+    render();
+  </script>
+</body>
+</html>

@@ -1,0 +1,50 @@
+{
+  "generatedAt": "2026-05-06T02:06:32",
+  "target": "xcloud",
+  "mode": "baseline",
+  "hidRows": [],
+  "signature": {
+    "id": "rock-candy-switch-wired",
+    "name": "Rock Candy Wired Controller for Nintendo Switch",
+    "vendorId": "0x0e6f",
+    "productId": "0x0187",
+    "transport": "USB",
+    "aliases": [
+      "Rock Candy",
+      "Nintendo Switch",
+      "0x0e6f",
+      "0x0187"
+    ],
+    "targets": {
+      "xcloud": false,
+      "geforceNow": "unknown",
+      "steamInput": "blocked_by_login",
+      "browserGamepadApi": true
+    },
+    "knownGood": {
+      "macosHid": true,
+      "browserGamepadApi": true,
+      "xcloudDirect": false,
+      "steamInput": "blocked_by_login",
+      "safariXcloud": false
+    },
+    "classification": {
+      "xinputIdentity": false,
+      "cloudGamingReady": false,
+      "recommendedPath": "Use an Xbox controller, or add a hardware XInput adapter such as Mayflash MAGIC-NS 2 / MAGIC-X."
+    },
+    "notes": [
+      "macOS and Chrome can read buttons/axes.",
+      "Xbox Cloud in Chrome/Safari did not accept the controller directly.",
+      "Software-only path requires Steam Input, but Steam login was not available in this session."
+    ]
+  },
+  "checks": {
+    "hidVisible": false,
+    "browserGamepadApi": true,
+    "xinputIdentity": false,
+    "targetDirectSupport": false,
+    "cloudGamingReady": false
+  },
+  "recommendation": "Use an Xbox controller, or add a hardware XInput adapter such as Mayflash MAGIC-NS 2 / MAGIC-X."
+}

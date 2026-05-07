@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.blackmamba.gaming-runtime</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/blackmambarecords/Documents/Codex/2026-04-28/acabo-de-conectar-un-control-ruby/blackmamba-gaming-runtime.sh</string>
+    <string>watch</string>
+  </array>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <false/>
+
+  <key>StandardOutPath</key>
+  <string>/Users/blackmambarecords/Documents/Codex/2026-04-28/acabo-de-conectar-un-control-ruby/logs/launchd.out.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/blackmambarecords/Documents/Codex/2026-04-28/acabo-de-conectar-un-control-ruby/logs/launchd.err.log</string>
+</dict>
+</plist>

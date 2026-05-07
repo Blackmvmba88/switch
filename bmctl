@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEBUG_PORT="${DEBUG_PORT:-9224}"
+APP_STATUS="${HOME}/Library/Application Support/BlackMambaInput/reports/live-status.json"
+
+usage() {
+  cat <<'HELP'
+BlackMamba Input Runtime metacomandos
+
+Uso:
+  ./bmctl play              Abre xCloud con puente CDP + HID source
+  ./bmctl reinject          Reinyecta el Xbox bridge en la pestaña actual de xCloud
+  ./bmctl verify            Verifica si xCloud ve Xbox 360 virtual standard
+  ./bmctl status            Estado live-monitor + HID source + xCloud tab
+  ./bmctl doctor            Diagnóstico HID/xCloud compatibility
+  ./bmctl hid               Arranca fuente nativa HID -> live-monitor
+  ./bmctl stop-hid          Detiene fuente nativa HID
+  ./bmctl lab               Abre el laboratorio visual de gamepad
+  ./bmctl test              Corre pruebas offline/live smoke
+  ./bmctl save              Guarda commit local del runtime
+  ./bmctl logs              Muestra logs recientes
+  ./bmctl clean             Limpia caches temporales de Chrome del runtime
+
+Variables útiles:
+  URL=https://www.xbox.com/es-MX/play ./bmctl play
+  DEBUG_PORT=9224 ./bmctl verify
+HELP
+}
+
+chrome_tabs() {
+  node -e "(async()=>{try{const tabs=await (await fetch('http://127.0.0.1:${DEBUG_PORT}/json')).json(); console.log(tabs.map((t,i)=>i+' '+t.type+' '+t.title+' '+t.url).join('\\n'));}catch(e){console.log('CDP no disponible en puerto ${DEBUG_PORT}')}})()"
+}
+
+case "${1:-help}" in
+  play)
+    "${ROOT}/play-xcloud-cdp-bridge.sh"
+    ;;
+  reinject|reinyecta)
+    "${ROOT}/start-hid-live-source.sh"
+    REUSE_XCLOUD=1 node "${ROOT}/runtime/inject-bridge-cdp.js" "${DEBUG_PORT}"
+    ;;
+  verify|verifica)
+    VERIFY_ONLY=1 node "${ROOT}/runtime/inject-bridge-cdp.js" "${DEBUG_PORT}"
+    ;;
+  status)
+    echo "== live status =="
+    if [[ -f "${APP_STATUS}" ]]; then sed -n '1,160p' "${APP_STATUS}"; else echo "sin live-status"; fi
+    echo
+    echo "== hid source =="
+    if [[ -f "${ROOT}/logs/hid-live-source.pid" ]] && kill -0 "$(cat "${ROOT}/logs/hid-live-source.pid")" >/dev/null 2>&1; then
+      echo "hid-live-source running pid=$(cat "${ROOT}/logs/hid-live-source.pid")"
+    else
+      echo "hid-live-source stopped"
+    fi
+    echo
+    echo "== chrome tabs =="
+    chrome_tabs
+    ;;
+  doctor)
+    "${ROOT}/controller-doctor.sh" doctor
+    ;;
+  hid)
+    "${ROOT}/start-hid-live-source.sh"
+    ;;
+  stop-hid)
+    "${ROOT}/stop-hid-live-source.sh"
+    ;;
+  lab)
+    open "file://${ROOT}/gamepad-test/index.html"
+    ;;
+  test)
+    "${ROOT}/test-runtime.sh"
+    ;;
+  logs)
+    echo "== hid-live-source =="
+    tail -n 60 "${ROOT}/logs/hid-live-source.log" 2>/dev/null || true
+    echo
+    echo "== live-monitor =="
+    tail -n 40 "${HOME}/Library/Application Support/BlackMambaInput/logs/live-events.jsonl" 2>/dev/null || true
+    ;;
+  clean)
+    rm -rf /tmp/blackmamba-xcloud-bridge-profile /tmp/blackmamba-xcloud-bridge-verify-profile
+    echo "Limpieza lista. No borre /tmp/blackmamba-xcloud-cdp-profile para no romper la sesion activa."
+    ;;
+  save)
+    git add -A
+    git commit -m "Save BlackMamba input runtime" || true
+    ;;
+  -h|--help|help)
+    usage
+    ;;
+  *)
+    usage
+    exit 1
+    ;;
+esac
