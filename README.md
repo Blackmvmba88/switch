@@ -273,3 +273,43 @@ This mirrors research in:
 - **XOutput** — Third-party Windows utility for HID/XInput mapping
 - **ViGEm** — Nefarius Virtual Gamepad Emulation Bus
 - **Rock Candy Controller** — PDP (Performance Designed Products)
+
+---
+
+## 🛠 Cybernetic Core Architecture (V2)
+
+The project has transitioned to a modular, decoupled architecture focused on **high-fidelity instrumentation and control**.
+
+### 1. Hardware Abstraction Layer (`core/hid_backend.py`)
+- Supports physical HID via `hidapi`.
+- High-fidelity **Mock Backend** for development, simulating 250Hz polling, jitter, and sensor noise.
+
+### 2. Normalized Signal Bus (`core/normalizer.py`)
+- Hardware-agnostic event structure: `{device, input, value, timestamp, poll_hz}`.
+- Consistent range mapping: Analog sticks to `[-1.0, 1.0]`.
+
+### 3. Modular Pipeline (`core/pipeline.py`)
+- Decoupled processing stages: **HID → Normalizer → Filters → Telemetry → Listeners**.
+- Extensible: Add any number of filters or output adapters.
+
+### 4. Advanced DSP Filters (`core/filters.py`)
+- **PID Control:** Industrial-grade smoothing and overshoot correction.
+- **Kalman Filter:** Statistical signal estimation for superior noise rejection.
+- **Dynamic Deadzone:** Drift-aware input masking.
+
+### 5. Telemetry & Observability (`core/telemetry.py`)
+- Real-time tracking of **Poll Rate (Hz)** and **Jitter (ms)**.
+- Dataset recording (`scripts/record_dataset.py`) for ML training and signal analysis.
+
+## Usage
+
+Run the cybernetic runtime with mock hardware:
+```bash
+export PYTHONPATH=$PYTHONPATH:.
+python3 main.py
+```
+
+Record a dataset for analysis:
+```bash
+python3 scripts/record_dataset.py
+```
