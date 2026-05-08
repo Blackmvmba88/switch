@@ -1,6 +1,61 @@
 # XOutput Portable - Nintendo Switch Controller Mapping
 
-Repositorio local para conservar y documentar la configuracion funcional de XOutput que permite usar el control **Rock Candy Wired Controller for Nintendo Switch** como un control compatible con **Xbox 360 / XInput** en Windows.
+Repositorio local para conservar y documentar la configuracion funcional de XOutput que permite usar el control **Rock Candy Wired Controller for Nintendo Switch** como un control compatible con Xbox 360 / XInput en Windows y macOS.
+
+---
+
+## 🚀 Vision: Cybernetic Input Runtime
+
+This project is evolving beyond simple controller mapping into an **adaptive, observable runtime** for intelligent input systems.
+
+### Current State: Mapper
+```text
+Rock Candy Wired Controller for Nintendo Switch
+→ DirectInput / HID
+→ XOutput
+→ ViGEm / Virtual Gamepad Emulation Bus
+→ Xbox 360 Controller for Windows
+→ Games expecting XInput
+```
+
+### Future State: Autonomous Control Layer
+Transform raw HID input into an intelligent, adaptive system with:
+
+- **Real-time telemetry & latency monitoring** — Observable input pipeline with measurable latency, jitter, and state accuracy
+- **PID-assisted stabilization** — Feedback loops for stick smoothing, drift compensation, and overshoot correction
+- **Dynamic deadzone & sensitivity adaptation** — Real-time adjustment based on input patterns and game context
+- **Intent prediction layer** — ML-driven recognition of user intention (aim, movement, precision vs. speed)
+- **Semi-autonomous correction** — Automatic smoothing, camera stabilization, and movement assistance
+- **Adaptive control augmentation** — AI-driven feedback similar to fly-by-wire systems in aviation
+
+### The Core Control Loop
+
+```
+Human Intention (raw input)
+    ↓
+HID Signal Capture (telemetry)
+    ↓
+System State Model (current position/velocity)
+    ↓
+Error = Desired - Actual
+    ↓
+PID Controller (correction/smoothing)
+    ↓
+Adaptive Output (feedback-adjusted action)
+    ↓
+Observable Runtime (metrics & learning)
+    ↓ [closed loop]
+```
+
+Modern games already implement pieces of this:
+- Aim assist = intent prediction + automatic correction
+- Movement smoothing = signal filtering + interpolation  
+- Camera stabilization = gyro PID loops
+- Recoil compensation = predictive model of weapon behavior
+
+**This project aims to expose and generalize this as open, programmable infrastructure.**
+
+---
 
 ## Estado Actual
 
@@ -122,7 +177,7 @@ git add .gitattributes .gitignore README.md docs scripts settings.json
 git commit -m "Document XOutput controller mapping"
 ```
 
-Nota: `XOutput.exe` es un binario de terceros. Para un repo privado local se puede versionar si necesitas portabilidad total, pero para un repo publico conviene documentar la fuente de descarga y no redistribuir el ejecutable.
+Nota: `XOutput.exe` es un binario de terceros. Para un repo privado local se puede versionar si necesitas portabilidad total, pero para un repo publico conviene documentar la fuente de descarga.
 
 ## Preparacion Para macOS
 
@@ -186,3 +241,35 @@ docs/macos-migration.md
 `settings.json` es el activo principal. Antes de editarlo, hacer backup. Si algo deja de funcionar, restaurar el ultimo backup conocido.
 
 Para portar a Mac, no cambiar el layout por intuicion. Replicar primero `docs/controller-mapping.md` y despues ajustar solo si una herramienta de macOS reporta ejes invertidos.
+
+---
+
+## 🔬 Research Roadmap: Autonomous Control Infrastructure
+
+Experimental research areas for transforming this into a cybernetic input system:
+
+- [ ] **HID Telemetry Engine** — Real-time capture and logging of input signals with latency metrics
+- [ ] **Real-time Feedback Monitoring** — Observable latency, jitter, and state accuracy measurement
+- [ ] **PID-Assisted Stabilization** — Feedback loops for stick smoothing and drift compensation
+- [ ] **Dynamic Deadzone Adaptation** — Automatic adjustment based on input patterns and variance
+- [ ] **Intent Recognition Layer** — ML-driven classification of user intention (precision vs. speed, aim vs. movement)
+- [ ] **Predictive Input Smoothing** — Anticipatory signal correction based on trajectory
+- [ ] **Semi-Autonomous Movement Assistance** — Automatic camera stabilization and movement smoothing
+- [ ] **Adaptive Sensitivity Adjustment** — Real-time DPI/sensitivity modification based on context
+- [ ] **Observable Runtime Metrics** — Exportable telemetry (JSON/CSV) for analysis and learning
+- [ ] **Autonomous Correction Systems** — AI-driven decision-making for input augmentation
+- [ ] **Multi-Platform Abstraction** — Unified control layer across Windows, macOS, and Linux
+
+This mirrors research in:
+- Flight control augmentation systems (fly-by-wire)
+- Robotic middleware and cyber-physical control
+- Real-time adaptive systems
+- Human-computer interaction optimization
+
+---
+
+## Licencia & Creditos
+
+- **XOutput** — Third-party Windows utility for HID/XInput mapping
+- **ViGEm** — Nefarius Virtual Gamepad Emulation Bus
+- **Rock Candy Controller** — PDP (Performance Designed Products)
