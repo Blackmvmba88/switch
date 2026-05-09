@@ -23,6 +23,7 @@ Uso:
   ./bmctl install-hid-agent Instala LaunchAgent persistente para HID
   ./bmctl stop-hid          Detiene fuente nativa HID
   ./bmctl lab               Abre el laboratorio visual de gamepad
+  ./bmctl map               Abre el mapeador visual BlackMamba (XPout style)
   ./bmctl test              Corre pruebas offline/live smoke
   ./bmctl save              Guarda commit local del runtime
   ./bmctl logs              Muestra logs recientes
@@ -90,6 +91,9 @@ case "${1:-help}" in
     ;;
   lab)
     open "file://${ROOT}/gamepad-test/index.html"
+    ;;
+  map)
+    open "file://${ROOT}/gamepad-test/mapper.html"
     ;;
   test)
     "${ROOT}/test-runtime.sh"

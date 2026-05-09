@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BlackMamba Gamepad Mapper</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+
+    :root {
+      --neon-pink: #ff00ff;
+      --neon-blue: #00ffff;
+      --neon-green: #39ff14;
+      --bg-dark: #050505;
+      --bg-panel: #111111;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: white;
+      font-family: 'Orbitron', sans-serif;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    header {
+      width: 100%;
+      padding: 20px;
+      text-align: center;
+      border-bottom: 2px solid var(--neon-pink);
+      box-shadow: 0 0 15px var(--neon-pink);
+      margin-bottom: 30px;
+      position: relative;
+    }
+
+    .logo-subtitle {
+      font-size: 0.8em;
+      color: var(--neon-blue);
+      letter-spacing: 2px;
+      margin-top: 5px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 2.5em;
+      text-transform: uppercase;
+      letter-spacing: 5px;
+      color: var(--neon-pink);
+      text-shadow: 0 0 10px var(--neon-pink), 0 0 20px var(--neon-pink);
+      font-weight: 700;
+    }
+
+    .container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 40px;
+      padding: 20px;
+      max-width: 1200px;
+    }
+
+    .controller-view {
+      position: relative;
+      width: 600px;
+      height: 450px;
+      background: var(--bg-panel);
+      border: 3px solid var(--neon-blue);
+      border-radius: 50px;
+      box-shadow: 0 0 30px rgba(0, 255, 255, 0.2);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .target-button {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 2px solid white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.2s;
+      background: rgba(0,0,0,0.5);
+      z-index: 10;
+    }
+
+    .target-button:hover, .target-button.active {
+      transform: scale(1.2);
+      box-shadow: 0 0 15px white;
+    }
+
+    .target-button[data-mapped="true"] {
+      border-color: var(--neon-green);
+      color: var(--neon-green);
+      box-shadow: 0 0 10px var(--neon-green);
+    }
+
+    /* Xbox Layout Positions */
+    .btn-a { bottom: 120px; right: 150px; border-color: #39ff14; }
+    .btn-b { bottom: 170px; right: 100px; border-color: #ff3131; }
+    .btn-x { bottom: 170px; right: 200px; border-color: #00ffff; }
+    .btn-y { bottom: 220px; right: 150px; border-color: #ffde33; }
+    
+    .btn-lb { top: 80px; left: 120px; width: 80px; border-radius: 10px; }
+    .btn-rb { top: 80px; right: 120px; width: 80px; border-radius: 10px; }
+    .btn-lt { top: 30px; left: 120px; width: 80px; border-radius: 5px; height: 30px; }
+    .btn-rt { top: 30px; right: 120px; width: 80px; border-radius: 5px; height: 30px; }
+
+    .btn-back { top: 160px; left: 240px; width: 30px; height: 20px; border-radius: 5px; }
+    .btn-start { top: 160px; right: 240px; width: 30px; height: 20px; border-radius: 5px; }
+    .btn-guide { top: 110px; left: 280px; width: 40px; height: 40px; border-color: white; }
+
+    .stick-l { top: 150px; left: 100px; width: 60px; height: 60px; border-width: 3px; }
+    .stick-r { bottom: 120px; right: 220px; width: 60px; height: 60px; border-width: 3px; }
+
+    .dpad { position: absolute; bottom: 120px; left: 180px; width: 80px; height: 80px; }
+    .dpad-up { top: 0; left: 30px; width: 20px; height: 30px; position: absolute; border: 1px solid white; }
+    .dpad-down { bottom: 0; left: 30px; width: 20px; height: 30px; position: absolute; border: 1px solid white; }
+    .dpad-left { left: 0; top: 30px; width: 30px; height: 20px; position: absolute; border: 1px solid white; }
+    .dpad-right { right: 0; top: 30px; width: 30px; height: 20px; position: absolute; border: 1px solid white; }
+
+    .sidebar {
+      width: 350px;
+      background: var(--bg-panel);
+      border: 2px solid var(--neon-pink);
+      padding: 20px;
+      border-radius: 20px;
+      box-shadow: 0 0 20px rgba(255, 0, 255, 0.1);
+    }
+
+    .status-panel {
+      margin-top: 20px;
+      font-size: 0.9em;
+      color: #aaa;
+    }
+
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      margin-top: 20px;
+    }
+
+    button.action {
+      background: transparent;
+      border: 2px solid var(--neon-blue);
+      color: var(--neon-blue);
+      padding: 10px;
+      font-family: 'Orbitron', sans-serif;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    button.action:hover {
+      background: var(--neon-blue);
+      color: black;
+      box-shadow: 0 0 15px var(--neon-blue);
+    }
+
+    .mapping-info {
+      background: #000;
+      padding: 10px;
+      border: 1px solid #333;
+      margin-top: 10px;
+      height: 200px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 12px;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.8);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-content {
+      background: var(--bg-panel);
+      border: 2px solid var(--neon-green);
+      padding: 40px;
+      border-radius: 20px;
+      text-align: center;
+      box-shadow: 0 0 30px var(--neon-green);
+    }
+
+    .neon-text-green { color: var(--neon-green); text-shadow: 0 0 5px var(--neon-green); }
+    
+    .stick-visual {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        background: var(--neon-blue);
+        border-radius: 50%;
+        box-shadow: 0 0 10px var(--neon-blue);
+        pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>BLACKMAMBA</h1>
+    <div class="logo-subtitle">RECORDS • ブラックマンバ・レコード</div>
+  </header>
+
+  <div class="container">
+    <div class="controller-view">
+      <!-- Xbox Controller Background Placeholder -->
+      <svg width="500" height="400" viewBox="0 0 500 400" style="opacity: 0.3;">
+        <path d="M100,100 Q50,100 50,200 L50,300 Q50,350 100,350 L400,350 Q450,350 450,300 L450,200 Q450,100 400,100 Z" fill="none" stroke="cyan" stroke-width="2" />
+      </svg>
+
+      <!-- Interactive Targets -->
+      <div class="target-button btn-a" data-id="0">A</div>
+      <div class="target-button btn-b" data-id="1">B</div>
+      <div class="target-button btn-x" data-id="2">X</div>
+      <div class="target-button btn-y" data-id="3">Y</div>
+
+      <div class="target-button btn-lb" data-id="4">LB</div>
+      <div class="target-button btn-rb" data-id="5">RB</div>
+      <div class="target-button btn-lt" data-id="6">LT</div>
+      <div class="target-button btn-rt" data-id="7">RT</div>
+
+      <div class="target-button btn-back" data-id="8">◄</div>
+      <div class="target-button btn-start" data-id="9">☰</div>
+      <div class="target-button btn-guide" data-id="16">X</div>
+
+      <div class="target-button stick-l" data-axis-x="0" data-axis-y="1">LS</div>
+      <div class="target-button stick-r" data-axis-x="2" data-axis-y="3">RS</div>
+
+      <div class="dpad">
+        <div class="target-button dpad-up" data-id="12"></div>
+        <div class="target-button dpad-down" data-id="13"></div>
+        <div class="target-button dpad-left" data-id="14"></div>
+        <div class="target-button dpad-right" data-id="15"></div>
+      </div>
+
+      <!-- Stick positions -->
+      <div id="ls-pos" class="stick-visual" style="left: 130px; top: 180px;"></div>
+      <div id="rs-pos" class="stick-visual" style="right: 250px; bottom: 150px;"></div>
+    </div>
+
+    <div class="sidebar">
+      <h2>Mapping Studio</h2>
+      <div id="device-info" class="neon-text-green">No controller detected</div>
+      
+      <div class="controls">
+        <button class="action" onclick="startGuidedCalibration()" style="border-color: var(--neon-pink); color: var(--neon-pink);">Guided Calibration</button>
+        <button class="action" onclick="resetMapping()">Reset Mapping</button>
+        <button class="action" onclick="saveMapping()" style="border-color: var(--neon-green); color: var(--neon-green);">Save to Bridge</button>
+      </div>
+
+      <div class="status-panel">
+        <p id="instruction-text">1. Click a button on the visual controller or start Guided Calibration.</p>
+        <p>2. Press the corresponding button on your physical controller.</p>
+        <p>3. Repeat for all buttons and sticks.</p>
+      </div>
+
+      <div class="mapping-info" id="mapping-log">
+        [System Ready]
+      </div>
+    </div>
+  </div>
+
+  <div id="mapping-modal" class="modal">
+    <div class="modal-content">
+      <h2 id="modal-title">Esperando entrada...</h2>
+      <p id="modal-desc">Presiona el botón en tu control físico</p>
+      <div id="timer-bar" style="width: 100%; height: 5px; background: var(--neon-pink); margin-top: 20px; transition: width linear;"></div>
+      <button class="action" onclick="cancelMapping()" style="margin-top: 20px; border-color: #ff3131; color: #ff3131;">Cancelar</button>
+    </div>
+  </div>
+
+  <script>
+    const xboxButtons = [
+      { id: 0, label: "A" }, { id: 1, label: "B" }, { id: 2, label: "X" }, { id: 3, label: "Y" },
+      { id: 4, label: "LB" }, { id: 5, label: "RB" }, { id: 6, label: "LT" }, { id: 7, label: "RT" },
+      { id: 8, label: "Back" }, { id: 9, label: "Start" }, { id: 10, label: "LS Click" }, { id: 11, label: "RS Click" },
+      { id: 12, label: "DPad Up" }, { id: 13, label: "DPad Down" }, { id: 14, label: "DPad Left" }, { id: 15, label: "DPad Right" },
+      { id: 16, label: "Guide" }
+    ];
+
+    let currentMapping = {
+      id: "default",
+      buttons: {},
+      axes: { 0: 0, 1: 1, 2: 2, 3: 3 }
+    };
+    
+    let activeTarget = null;
+    let isMapping = false;
+    let calibrationIndex = -1;
+    let calibrationTimer = null;
+
+    function startGuidedCalibration() {
+        calibrationIndex = 0;
+        nextCalibrationStep();
+    }
+
+    function nextCalibrationStep() {
+        if (calibrationIndex >= xboxButtons.length) {
+            isMapping = false;
+            document.getElementById('mapping-modal').style.display = 'none';
+            log("Calibration complete!");
+            saveMapping();
+            return;
+        }
+
+        const step = xboxButtons[calibrationIndex];
+        const target = document.querySelector(`.target-button[data-id="${step.id}"]`);
+        
+        activeTarget = target;
+        isMapping = true;
+        
+        document.getElementById('mapping-modal').style.display = 'flex';
+        document.getElementById('modal-title').innerText = `CALIBRATION: ${step.label}`;
+        document.getElementById('modal-desc').innerText = `Presiona ${step.label} ahora`;
+        
+        // Reset timer bar
+        const bar = document.getElementById('timer-bar');
+        bar.style.transition = 'none';
+        bar.style.width = '100%';
+        setTimeout(() => {
+            bar.style.transition = 'width 5s linear';
+            bar.style.width = '0%';
+        }, 10);
+
+        clearTimeout(calibrationTimer);
+        calibrationTimer = setTimeout(() => {
+            log(`Timeout for ${step.label}, skipping...`);
+            calibrationIndex++;
+            nextCalibrationStep();
+        }, 5000);
+    }
+
+
+    // Load existing mapping
+    const saved = localStorage.getItem("blackmamba_custom_mapping");
+    if (saved) {
+      currentMapping = JSON.parse(saved);
+      updateVisuals();
+    }
+
+    function log(msg) {
+      const el = document.getElementById('mapping-log');
+      el.innerHTML += `<div>> ${msg}</div>`;
+      el.scrollTop = el.scrollHeight;
+    }
+
+    const targets = document.querySelectorAll('.target-button');
+    targets.forEach(t => {
+      t.addEventListener('click', () => {
+        activeTarget = t;
+        isMapping = true;
+        document.getElementById('mapping-modal').style.display = 'flex';
+        document.getElementById('modal-title').innerText = `Mapping: ${t.innerText || 'DPad'}`;
+      });
+    });
+
+    function cancelMapping() {
+      isMapping = false;
+      calibrationIndex = -1;
+      clearTimeout(calibrationTimer);
+      document.getElementById('mapping-modal').style.display = 'none';
+      activeTarget = null;
+    }
+
+    function updateVisuals() {
+      targets.forEach(t => {
+        const id = t.dataset.id;
+        if (id !== undefined && currentMapping.buttons[id] !== undefined) {
+          t.dataset.mapped = "true";
+        }
+      });
+    }
+
+    function resetMapping() {
+      currentMapping = { buttons: {}, axes: { 0: 0, 1: 1, 2: 2, 3: 3 } };
+      localStorage.removeItem("blackmamba_custom_mapping");
+      updateVisuals();
+      log("Mapping cleared.");
+    }
+
+    function saveMapping() {
+      const pads = navigator.getGamepads();
+      const pad = pads[0];
+      if (pad) currentMapping.id = pad.id;
+
+      localStorage.setItem("blackmamba_custom_mapping", JSON.stringify(currentMapping));
+      if (pad) localStorage.setItem(`mapping_${pad.id}`, JSON.stringify(currentMapping));
+      
+      log("Mapping saved! Bridge will use it on next reload.");
+      alert("Mapeo guardado correctamente.");
+    }
+
+    function handleInput() {
+      const pads = navigator.getGamepads();
+      const pad = pads[0];
+      if (!pad) return;
+
+      document.getElementById('device-info').innerText = pad.id.substring(0, 30) + "...";
+
+      if (isMapping && activeTarget) {
+        // Check buttons
+        pad.buttons.forEach((b, i) => {
+          if (b.pressed) {
+            const targetId = activeTarget.dataset.id;
+            if (targetId !== undefined) {
+              currentMapping.buttons[targetId] = i;
+              log(`Mapped physical B${i} to Xbox ${activeTarget.innerText || 'Button'}`);
+              updateVisuals();
+              
+              if (calibrationIndex !== -1) {
+                  clearTimeout(calibrationTimer);
+                  calibrationIndex++;
+                  setTimeout(nextCalibrationStep, 250); // Debounce
+              } else {
+                  cancelMapping();
+              }
+            }
+          }
+        });
+
+        // Check axes for sticks
+        const isLS = activeTarget.classList.contains('stick-l');
+        const isRS = activeTarget.classList.contains('stick-r');
+        if (isLS || isRS) {
+            pad.axes.forEach((v, i) => {
+                if (Math.abs(v) > 0.8) {
+                    const axisName = isLS ? (Math.abs(v) > 0.8 && !pad.axes.slice(0,i).some(x=>Math.abs(x)>0.8) ? 'LX' : 'LY') : 'RX/RY';
+                    // We'll simplify: first axis moved is X, next is Y for that stick
+                    const targetIndex = isLS ? (Math.abs(v) > 0.8 ? 0 : 1) : (Math.abs(v) > 0.8 ? 2 : 3);
+                    
+                    // Toggle heuristic: if vertical movement detected, assign to Y
+                    // For now, let's just log and assign
+                    if (isLS) {
+                        if (currentMapping.axes[0] === i) return;
+                        log(`Detected axis A${i} for Left Stick`);
+                        // Simple assignment: if we are mapping LS, let's assume user moves X then Y
+                    } else {
+                        log(`Detected axis A${i} for Right Stick`);
+                        currentMapping.axes[3] = i; // Map to RY for now to fix user issue
+                        log(`Assigned A${i} to Right Stick Vertical (RY)`);
+                        updateVisuals();
+                        cancelMapping();
+                    }
+                }
+            });
+        }
+      }
+
+      // Visual feedback for sticks
+      const ls = document.getElementById('ls-pos');
+      const rs = document.getElementById('rs-pos');
+      
+      const lx = pad.axes[currentMapping.axes[0]] || 0;
+      const ly = pad.axes[currentMapping.axes[1]] || 0;
+      const rx = pad.axes[currentMapping.axes[2]] || 0;
+      const ry = pad.axes[currentMapping.axes[3]] || 0;
+
+      ls.style.transform = `translate(${lx * 20}px, ${ly * 20}px)`;
+      rs.style.transform = `translate(${rx * 20}px, ${ry * 20}px)`;
+      
+      requestAnimationFrame(handleInput);
+    }
+
+    window.addEventListener("gamepadconnected", () => {
+      log("Gamepad connected.");
+      handleInput();
+    });
+  </script>
+</body>
+</html>

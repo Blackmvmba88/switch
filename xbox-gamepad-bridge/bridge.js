@@ -30,6 +30,19 @@
     { value: 3.286, buttons: [] }
   ];
 
+  function getCustomMapping(padId) {
+    try {
+      if (padId) {
+        const specific = localStorage.getItem(`mapping_${padId}`);
+        if (specific) return JSON.parse(specific);
+      }
+      const stored = localStorage.getItem("blackmamba_custom_mapping");
+      return stored ? JSON.parse(stored) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   function button(source, fallbackValue = 0) {
     if (!source) {
       return { pressed: false, touched: false, value: fallbackValue };
@@ -69,33 +82,41 @@
   }
 
   function normalizeButtons(pad) {
+    const custom = getCustomMapping(pad.id);
     const b = Array.from(pad.buttons || []);
     const hat = decodeHat(Array.from(pad.axes || [])[9]);
 
-    // Standard Xbox order:
-    // 0 A, 1 B, 2 X, 3 Y, 4 LB, 5 RB, 6 LT, 7 RT,
-    // 8 Back, 9 Start, 10 LS, 11 RS, 12 Up, 13 Down, 14 Left, 15 Right, 16 Guide.
     const standard = new Array(17).fill(null).map(() => button(null));
 
-    // Switch-style labels are physically reversed against Xbox's letter names.
-    // Most browsers still expose the physical south/east/west/north cluster at 0..3.
-    standard[0] = button(b[0]); // south
-    standard[1] = button(b[1]); // east
-    standard[2] = button(b[2]); // west
-    standard[3] = button(b[3]); // north
-    standard[4] = button(b[4]);
-    standard[5] = button(b[5]);
-    standard[6] = button(b[6]);
-    standard[7] = button(b[7]);
-    standard[8] = button(b[8]);
-    standard[9] = button(b[9]);
-    standard[10] = button(b[10]);
-    standard[11] = button(b[11]);
-    standard[12] = b[12] ? button(b[12]) : virtualButton(hat.has("up"));
-    standard[13] = b[13] ? button(b[13]) : virtualButton(hat.has("down"));
-    standard[14] = b[14] ? button(b[14]) : virtualButton(hat.has("left"));
-    standard[15] = b[15] ? button(b[15]) : virtualButton(hat.has("right"));
-    standard[16] = button(b[16]);
+    if (custom && custom.buttons) {
+      for (let i = 0; i < 17; i++) {
+        const sourceIndex = custom.buttons[i];
+        if (typeof sourceIndex === "number") {
+          standard[i] = button(b[sourceIndex]);
+        }
+      }
+    } else {
+      // Switch-style labels are physically reversed against Xbox's letter names.
+      // Chrome on macOS usually maps: 0:Right(A), 1:Bottom(B), 2:Top(X), 3:Left(Y)
+      // We want standard[0] (Xbox A) to be the bottom button, etc.
+      standard[0] = button(b[1]); // Xbox A (Bottom) <- Switch B (Bottom)
+      standard[1] = button(b[0]); // Xbox B (Right)  <- Switch A (Right)
+      standard[2] = button(b[3]); // Xbox X (Left)   <- Switch Y (Left)
+      standard[3] = button(b[2]); // Xbox Y (Top)    <- Switch X (Top)
+      standard[4] = button(b[4]);
+      standard[5] = button(b[5]);
+      standard[6] = button(b[6]);
+      standard[7] = button(b[7]);
+      standard[8] = button(b[8]);
+      standard[9] = button(b[9]);
+      standard[10] = button(b[10]);
+      standard[11] = button(b[11]);
+      standard[12] = b[12] ? button(b[12]) : virtualButton(hat.has("up"));
+      standard[13] = b[13] ? button(b[13]) : virtualButton(hat.has("down"));
+      standard[14] = b[14] ? button(b[14]) : virtualButton(hat.has("left"));
+      standard[15] = b[15] ? button(b[15]) : virtualButton(hat.has("right"));
+      standard[16] = button(b[16]);
+    }
 
     return standard;
   }
@@ -112,9 +133,25 @@
       return pad;
     }
 
-    const axes = Array.from(pad.axes || [0, 0, 0, 0]).slice(0, 4);
-    while (axes.length < 4) {
-      axes.push(0);
+    const custom = getCustomMapping(pad.id);
+    const rawAxes = Array.from(pad.axes || []);
+    const axes = [0, 0, 0, 0]; // LX, LY, RX, RY
+
+    if (custom && custom.axes) {
+      axes[0] = rawAxes[custom.axes[0]] || 0;
+      axes[1] = rawAxes[custom.axes[1]] || 0;
+      axes[2] = rawAxes[custom.axes[2]] || 0;
+      axes[3] = rawAxes[custom.axes[3]] || 0;
+    } else {
+      axes[0] = rawAxes[0] || 0;
+      axes[1] = rawAxes[1] || 0;
+      axes[2] = rawAxes[2] || 0;
+      axes[3] = rawAxes[3] || 0;
+
+      // Heuristic: If RY (axes[3]) is dead but Axis 5 has life, use it.
+      if (Math.abs(axes[3]) < 0.01 && rawAxes[5] !== undefined && Math.abs(rawAxes[5]) > 0.1) {
+        axes[3] = rawAxes[5];
+      }
     }
 
     const normalized = {
