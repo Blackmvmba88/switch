@@ -24,6 +24,7 @@ Uso:
   ./bmctl stop-hid          Detiene fuente nativa HID
   ./bmctl lab               Abre el laboratorio visual de gamepad
   ./bmctl map               Abre el mapeador visual BlackMamba (XPout style)
+  ./bmctl view              Abre el visualizador live de telemetría (Neon)
   ./bmctl test              Corre pruebas offline/live smoke
   ./bmctl save              Guarda commit local del runtime
   ./bmctl logs              Muestra logs recientes
@@ -54,24 +55,30 @@ case "${1:-help}" in
     "${ROOT}/start-hid-live-source.sh"
     node "${ROOT}/runtime/watch-virtual-axes.js" "${DEBUG_PORT}" "${DURATION_MS:-15000}"
     ;;
+  setup)
+    echo "== Configurando BlackMamba Runtime =="
+    "${ROOT}/install-hid-live-source-agent.sh"
+    "${ROOT}/instalar-puente-xbox.sh"
+    echo "Listo. Reinicia Chrome para activar la extension."
+    ;;
   status)
     echo "== live status =="
     if [[ -f "${APP_STATUS}" ]]; then sed -n '1,160p' "${APP_STATUS}"; else echo "sin live-status"; fi
     echo
     echo "== hid source =="
-    HID_PID=""
-    if [[ -f "${APP_HID_PID_FILE}" ]] && kill -0 "$(cat "${APP_HID_PID_FILE}")" >/dev/null 2>&1; then
-      HID_PID="$(cat "${APP_HID_PID_FILE}")"
-    elif [[ -f "${HID_PID_FILE}" ]] && kill -0 "$(cat "${HID_PID_FILE}")" >/dev/null 2>&1; then
-      HID_PID="$(cat "${HID_PID_FILE}")"
-    else
-      HID_PID="$(pgrep -f "[.]tmp-runtime-test/hid-live-source" | head -n 1 || true)"
-      [[ -n "${HID_PID}" ]] && echo "${HID_PID}" > "${HID_PID_FILE}"
-    fi
+    HID_PID="$(pgrep -f "[.]tmp-runtime-test/hid-live-source" | head -n 1 || true)"
     if [[ -n "${HID_PID}" ]]; then
       echo "hid-live-source running pid=${HID_PID}"
     else
-      echo "hid-live-source stopped"
+      echo "hid-live-source stopped (corre ./bmctl hid)"
+    fi
+    echo
+    echo "== monitor =="
+    MONITOR_PID="$(pgrep -f "runtime/live-monitor.js" | head -n 1 || true)"
+    if [[ -n "${MONITOR_PID}" ]]; then
+      echo "live-monitor running pid=${MONITOR_PID}"
+    else
+      echo "live-monitor stopped (se inicia con ./bmctl play)"
     fi
     echo
     echo "== chrome tabs =="
@@ -94,6 +101,9 @@ case "${1:-help}" in
     ;;
   map)
     open "file://${ROOT}/gamepad-test/mapper.html"
+    ;;
+  view)
+    open "file://${ROOT}/gamepad-test/visualizer.html"
     ;;
   test)
     "${ROOT}/test-runtime.sh"

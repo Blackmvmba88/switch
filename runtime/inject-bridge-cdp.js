@@ -9,6 +9,22 @@ const bridgeSource = fs.readFileSync(path.join(root, "xbox-gamepad-bridge", "bri
 const reuseExisting = process.env.REUSE_XCLOUD === "1" || process.argv.includes("--reuse");
 const verifyOnly = process.env.VERIFY_ONLY === "1" || process.argv.includes("--verify");
 
+function isXboxPlayTarget(item) {
+  if (item.type !== "page") return false;
+  const url = item.url || "";
+  return /xbox\.com/.test(url) && /\/play(\/|$|\?)/.test(url) && !/\/auth\//.test(url);
+}
+
+function isXboxTarget(item) {
+  if (item.type !== "page") return false;
+  const url = item.url || "";
+  return /xbox\.com/.test(url) && !/\/auth\//.test(url);
+}
+
+function chooseTarget(targets) {
+  return targets.find(isXboxPlayTarget) || targets.find(isXboxTarget);
+}
+
 async function cdp(wsUrl, fn) {
   const ws = new WebSocket(wsUrl);
   let seq = 0;
@@ -44,7 +60,7 @@ async function main() {
 
   const targetsBefore = await (await fetch(`http://127.0.0.1:${debugPort}/json`)).json();
   let created = "";
-  let existing = targetsBefore.find((item) => item.type === "page" && /xbox\.com/.test(item.url || ""));
+  let existing = chooseTarget(targetsBefore);
 
   if (reuseExisting || verifyOnly) {
     created = existing?.id || "";
@@ -62,7 +78,7 @@ async function main() {
     const targets = await (await fetch(`http://127.0.0.1:${debugPort}/json`)).json();
     target = created
       ? targets.find((item) => item.id === created)
-      : targets.find((item) => item.type === "page" && /xbox\.com/.test(item.url || ""));
+      : chooseTarget(targets);
     if (target?.webSocketDebuggerUrl) break;
     await new Promise((resolve) => setTimeout(resolve, 250));
   }

@@ -1,13 +1,13 @@
 {
   "profileVersion": 1,
-  "generatedAt": "2026-05-06T11:39:48",
+  "generatedAt": "2026-05-09T12:00:00",
   "device": {
     "id": "Rock Candy Wired Controller for Nintendo Switch (Vendor: 0e6f Product: 0187)",
-    "mapping": "",
+    "mapping": "standard",
     "buttons": 14,
     "axes": 10
   },
-  "layout": "switch-generic",
+  "layout": "switch-rock-candy",
   "controllerFamily": "directinput-like",
   "dpadMode": "hat-axis",
   "triggerMode": "buttons",
@@ -15,84 +15,121 @@
     "A": {
       "source": "B0",
       "kind": "button",
-      "index": 0,
-      "confidence": 0.99,
-      "from": 0,
-      "to": 1,
-      "delta": 1
+      "index": 0
     },
     "B": {
+      "source": "B2",
+      "kind": "button",
+      "index": 2
+    },
+    "X": {
       "source": "B1",
       "kind": "button",
-      "index": 1,
-      "confidence": 0.99,
-      "from": 0,
-      "to": 1,
-      "delta": 1
+      "index": 1
+    },
+    "Y": {
+      "source": "B3",
+      "kind": "button",
+      "index": 3
+    },
+    "LB": {
+      "source": "B4",
+      "kind": "button",
+      "index": 4
+    },
+    "RB": {
+      "source": "B5",
+      "kind": "button",
+      "index": 5
+    },
+    "LT": {
+      "source": "B6",
+      "kind": "button",
+      "index": 6
+    },
+    "RT": {
+      "source": "B7",
+      "kind": "button",
+      "index": 7
+    },
+    "Back": {
+      "source": "B8",
+      "kind": "button",
+      "index": 8
+    },
+    "Start": {
+      "source": "B9",
+      "kind": "button",
+      "index": 9
+    },
+    "L3": {
+      "source": "B10",
+      "kind": "button",
+      "index": 10
+    },
+    "R3": {
+      "source": "B11",
+      "kind": "button",
+      "index": 11
+    },
+    "Guide": {
+      "source": "B12",
+      "kind": "button",
+      "index": 12
     },
     "DPad_Up": {
       "source": "A9",
       "kind": "axis",
       "index": 9,
-      "confidence": 0.99,
       "from": 1.286,
-      "to": -1,
-      "delta": -2.286
+      "to": -1
+    },
+    "DPad_Down": {
+      "source": "A9",
+      "kind": "axis",
+      "index": 9,
+      "from": 1.286,
+      "to": 0.143
+    },
+    "DPad_Left": {
+      "source": "A9",
+      "kind": "axis",
+      "index": 9,
+      "from": 1.286,
+      "to": 0.714
     },
     "DPad_Right": {
       "source": "A9",
       "kind": "axis",
       "index": 9,
-      "confidence": 0.99,
       "from": 1.286,
-      "to": -0.429,
-      "delta": -1.715
+      "to": -0.429
     },
     "LX": {
       "source": "A0",
       "kind": "axis",
-      "index": 0,
-      "confidence": 0.85,
-      "from": 0,
-      "to": 1,
-      "delta": 1
+      "index": 0
     },
     "LY": {
       "source": "A1",
       "kind": "axis",
-      "index": 1,
-      "confidence": 0.85,
-      "from": 0,
-      "to": 1,
-      "delta": 1
+      "index": 1
     },
     "RX": {
       "source": "A2",
       "kind": "axis",
-      "index": 2,
-      "confidence": 0.85,
-      "from": 0,
-      "to": 1,
-      "delta": 1
+      "index": 2
     },
     "RY": {
       "source": "A3",
       "kind": "axis",
-      "index": 3,
-      "confidence": 0.85,
-      "from": 0,
-      "to": 1,
-      "delta": 1
+      "index": 3
     }
   },
   "ranges": {
     "A0": [
       -1,
       1
-    ],
-    "A9": [
-      -1.0,
-      1.286
     ],
     "A1": [
       -1,
@@ -105,14 +142,18 @@
     "A3": [
       -1,
       1
+    ],
+    "A9": [
+      -1,
+      1.286
     ]
   },
   "deadzones": {
-    "A0": 0.08,
-    "A9": 0.35,
-    "A1": 0.08,
-    "A2": 0.08,
-    "A3": 0.08
+    "A0": 0.1,
+    "A1": 0.1,
+    "A2": 0.1,
+    "A3": 0.1,
+    "A9": 0.35
   },
   "dpad": {
     "type": "hat-axis",
@@ -131,10 +172,5 @@
       "Left": 0.714,
       "Neutral": 1.286
     }
-  },
-  "evidence": {
-    "sampleFile": "/Users/blackmambarecords/Documents/Codex/2026-04-28/acabo-de-conectar-un-control-ruby/samples/controller-sample-20260506-113948.json",
-    "sampleCount": 6,
-    "durationMs": 300
   }
 }

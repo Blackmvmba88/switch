@@ -20,6 +20,7 @@ final class HIDLiveSource: NSObject, URLSessionWebSocketDelegate {
   }
 
   func start() {
+    print("hid-live-source attempting to start with VendorID: 0x\(String(format: "%X", vendorId)), ProductID: 0x\(String(format: "%X", productId))") // Log IDs being used
     let matching: [String: Any] = [
       kIOHIDVendorIDKey as String: vendorId,
       kIOHIDProductIDKey as String: productId
@@ -31,13 +32,23 @@ final class HIDLiveSource: NSObject, URLSessionWebSocketDelegate {
     IOHIDManagerRegisterDeviceRemovalCallback(manager, deviceDisconnectedCallback, context)
     IOHIDManagerScheduleWithRunLoop(manager, CFRunLoopGetCurrent(), CFRunLoopMode.defaultMode.rawValue)
     let result = IOHIDManagerOpen(manager, IOOptionBits(kIOHIDOptionsTypeNone))
-    print("hid-live-source started openResult=\(result)")
+
+    // Check for errors when opening the HID manager
+    if result != 0 {
+        print("ERROR: Failed to open HID Manager. Error code: \(result). Cannot proceed.")
+        // Optionally, try to list available devices here if opening fails to help diagnose
+        // For now, we exit if the manager cannot be opened.
+        exit(Int32(result)) // Exit with the error code
+    }
+    print("hid-live-source started successfully.") // Success message
+
     connectWebSocket()
     Timer.scheduledTimer(withTimeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
       self?.sendFrame()
     }
     RunLoop.main.run()
   }
+
 
   func connectWebSocket() {
     let url = URL(string: "ws://127.0.0.1:8137/live")!
@@ -59,7 +70,19 @@ final class HIDLiveSource: NSObject, URLSessionWebSocketDelegate {
     if usagePage == 0x09 {
       let index = Int(usage) - 1
       if index >= 0 && index < buttons.count {
-        buttons[index] = intValue == 0 ? 0.0 : 1.0
+        let previousValue = buttons[index] // Store previous value for comparison
+    let newValue = intValue == 0 ? 0.0 : 1.0
+    buttons[index] = newValue
+
+    // --- Added Verbose Logging for ALL Buttons if state changes ---
+    if newValue != previousValue { // Log only when state changes
+        let pressedButtons = buttons.enumerated()
+            .filter { $0.element > 0.5 }
+            .map { String($0.offset) }
+            .joined(separator: ",")
+        print("DEBUG: Button states changed. Pressed: [\(pressedButtons)] (Raw \(index): \(newValue))")
+    }
+    // --- End Added Verbose Logging ---
       }
       return
     }
