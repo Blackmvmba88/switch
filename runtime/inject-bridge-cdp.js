@@ -25,6 +25,56 @@ function chooseTarget(targets) {
   return targets.find(isXboxPlayTarget) || targets.find(isXboxTarget);
 }
 
+function collectFrameIds(frameTree, out = []) {
+  if (!frameTree) return out;
+  if (frameTree.frame?.id) out.push(frameTree.frame.id);
+  for (const child of frameTree.childFrames || []) {
+    collectFrameIds(child, out);
+  }
+  return out;
+}
+
+async function createWorld(send, frameId) {
+  try {
+    const result = await send("Page.createIsolatedWorld", {
+      frameId,
+      worldName: "blackmamba-xcloud-bridge",
+      grantUniveralAccess: true
+    });
+    return result.executionContextId;
+  } catch (_) {
+    const result = await send("Page.createIsolatedWorld", {
+      frameId,
+      worldName: "blackmamba-xcloud-bridge"
+    });
+    return result.executionContextId;
+  }
+}
+
+async function injectBridgeEverywhere(send) {
+  await send("Page.addScriptToEvaluateOnNewDocument", { source: bridgeSource });
+  await send("Runtime.evaluate", { expression: bridgeSource, awaitPromise: false });
+
+  const tree = await send("Page.getFrameTree");
+  const frameIds = collectFrameIds(tree.frameTree);
+  let injectedFrames = 0;
+  for (const frameId of frameIds) {
+    try {
+      const contextId = await createWorld(send, frameId);
+      await send("Runtime.evaluate", {
+        expression: bridgeSource,
+        contextId,
+        awaitPromise: false
+      });
+      injectedFrames += 1;
+    } catch (_) {
+      // Cross-origin frames can reject isolated-world injection. The main frame
+      // injection above remains the critical path for xCloud.
+    }
+  }
+  return injectedFrames;
+}
+
 async function cdp(wsUrl, fn) {
   const ws = new WebSocket(wsUrl);
   let seq = 0;
@@ -116,11 +166,11 @@ async function main() {
       console.log(JSON.stringify(result.result.value, null, 2));
       return;
     }
-    await send("Page.addScriptToEvaluateOnNewDocument", { source: bridgeSource });
-    await send("Runtime.evaluate", { expression: bridgeSource, awaitPromise: false });
+    const injectedFrames = await injectBridgeEverywhere(send);
     if (!reuseExisting) {
       await send("Page.navigate", { url: targetUrl });
     }
+    console.log(`Injected frames: ${injectedFrames}`);
   });
 
   console.log(`Injected bridge ${reuseExisting ? "into current Xbox tab" : `and opened: ${targetUrl}`}`);

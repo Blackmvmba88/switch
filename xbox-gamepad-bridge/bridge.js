@@ -224,10 +224,12 @@
 
   function announceVirtualPadIfNeeded() {
     const pad = websocketVirtualPad();
-    if (!pad || bridgeState.announced) {
+    if (!pad) {
       return;
     }
-    bridgeState.announced = true;
+    if (!bridgeState.announced) {
+      bridgeState.announced = true;
+    }
     window.dispatchEvent(new GamepadEvent("gamepadconnected", { gamepad: pad }));
   }
 
@@ -302,5 +304,6 @@
   window.addEventListener("gamepadconnected", normalizeEvent, true);
   window.addEventListener("gamepaddisconnected", normalizeEvent, true);
   connectLiveMonitor();
+  window.setInterval(announceVirtualPadIfNeeded, 1000);
   console.info("[Xbox Cloud Gamepad Bridge] active");
 })();
