@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEBUG_PORT="${DEBUG_PORT:-9224}"
 APP_STATUS="${HOME}/Library/Application Support/BlackMambaInput/reports/live-status.json"
+XCLOUD_STATUS="${HOME}/Library/Application Support/BlackMambaInput/reports/xcloud-bridge-status.json"
 APP_HID_PID_FILE="${HOME}/Library/Application Support/BlackMambaInput/logs/hid-live-source.pid"
 HID_BIN="${ROOT}/.tmp-runtime-test/hid-live-source"
 HID_PID_FILE="${ROOT}/logs/hid-live-source.pid"
@@ -21,6 +22,9 @@ Uso:
   ./bmctl doctor            Diagnóstico HID/xCloud compatibility
   ./bmctl hid               Arranca fuente nativa HID -> live-monitor
   ./bmctl install-hid-agent Instala LaunchAgent persistente para HID
+  ./bmctl daemon            Instala daemon completo: live + HID + xCloud bridge
+  ./bmctl install-xcloud-agent Instala solo daemon de xCloud bridge
+  ./bmctl uninstall-xcloud-agent Quita daemon de xCloud bridge
   ./bmctl stop-hid          Detiene fuente nativa HID
   ./bmctl lab               Abre el laboratorio visual de gamepad
   ./bmctl map               Abre el mapeador visual BlackMamba (XPout style)
@@ -65,9 +69,16 @@ case "${1:-help}" in
     ;;
   setup)
     echo "== Configurando BlackMamba Runtime =="
+    "${ROOT}/install-live-monitor-agent.sh"
     "${ROOT}/install-hid-live-source-agent.sh"
+    "${ROOT}/install-xcloud-bridge-agent.sh"
     "${ROOT}/instalar-puente-xbox.sh"
     echo "Listo. Reinicia Chrome para activar la extension."
+    ;;
+  daemon)
+    "${ROOT}/install-live-monitor-agent.sh"
+    "${ROOT}/install-hid-live-source-agent.sh"
+    "${ROOT}/install-xcloud-bridge-agent.sh"
     ;;
   status)
     echo "== live status =="
@@ -89,6 +100,15 @@ case "${1:-help}" in
       echo "live-monitor stopped (se inicia con ./bmctl play)"
     fi
     echo
+    echo "== xcloud bridge daemon =="
+    XCLOUD_PID="$(pgrep -f "runtime/xcloud-bridge-agent.js" | head -n 1 || true)"
+    if [[ -n "${XCLOUD_PID}" ]]; then
+      echo "xcloud-bridge-agent running pid=${XCLOUD_PID}"
+    else
+      echo "xcloud-bridge-agent stopped (corre ./bmctl daemon)"
+    fi
+    if [[ -f "${XCLOUD_STATUS}" ]]; then sed -n '1,80p' "${XCLOUD_STATUS}"; fi
+    echo
     echo "== chrome tabs =="
     chrome_tabs
     ;;
@@ -100,6 +120,12 @@ case "${1:-help}" in
     ;;
   install-hid-agent)
     "${ROOT}/install-hid-live-source-agent.sh"
+    ;;
+  install-xcloud-agent)
+    "${ROOT}/install-xcloud-bridge-agent.sh"
+    ;;
+  uninstall-xcloud-agent)
+    "${ROOT}/uninstall-xcloud-bridge-agent.sh"
     ;;
   stop-hid)
     "${ROOT}/stop-hid-live-source.sh"
@@ -122,6 +148,9 @@ case "${1:-help}" in
     echo
     echo "== live-monitor =="
     tail -n 40 "${HOME}/Library/Application Support/BlackMambaInput/logs/live-events.jsonl" 2>/dev/null || true
+    echo
+    echo "== xcloud-bridge-agent =="
+    tail -n 80 "${HOME}/Library/Application Support/BlackMambaInput/logs/xcloud-bridge-agent.err.log" 2>/dev/null || true
     ;;
   clean)
     rm -rf /tmp/blackmamba-xcloud-bridge-profile /tmp/blackmamba-xcloud-bridge-verify-profile

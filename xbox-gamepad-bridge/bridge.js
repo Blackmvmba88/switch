@@ -1,8 +1,13 @@
 (() => {
-  if (window.__xboxCloudGamepadBridgeInstalled) {
+  const BRIDGE_VERSION = "2026-05-13.1";
+  if (
+    window.__xboxCloudGamepadBridgeInstalled &&
+    window.__xboxCloudGamepadBridgeVersion === BRIDGE_VERSION
+  ) {
     return;
   }
   window.__xboxCloudGamepadBridgeInstalled = true;
+  window.__xboxCloudGamepadBridgeVersion = BRIDGE_VERSION;
 
   const originalGetGamepads = navigator.getGamepads
     ? navigator.getGamepads.bind(navigator)
@@ -172,8 +177,15 @@
   function semanticButton(name) {
     const state = bridgeState.frame?.buttons?.[name];
     const value = Number(state?.value || 0);
-    const pressed = Boolean(state?.pressed || value > 0.5);
-    return { pressed, touched: pressed || value > 0.05, value: pressed ? Math.max(1, value || 1) : value };
+    const axisBacked = String(state?.source || "").startsWith("A");
+    const pressed = axisBacked
+      ? Boolean(state?.pressed)
+      : Boolean(state?.pressed || value > 0.5);
+    return {
+      pressed,
+      touched: pressed,
+      value: pressed ? Math.max(1, value || 1) : 0
+    };
   }
 
   function semanticAxis(name) {
