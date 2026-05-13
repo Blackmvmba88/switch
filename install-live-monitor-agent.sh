@@ -35,7 +35,6 @@ cat > "${PLIST}" <<PLIST
     <string>${APP_ROOT}/logs/live-events.jsonl</string>
     <string>--status</string>
     <string>${APP_ROOT}/reports/live-status.json</string>
-    <string>--verbose</string>
   </array>
   <key>RunAtLoad</key>
   <true/>

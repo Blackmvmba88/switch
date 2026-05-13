@@ -87,7 +87,7 @@ case "${1:-help}" in
     if [[ -f "${APP_STATUS}" ]]; then sed -n '1,160p' "${APP_STATUS}"; else echo "sin live-status"; fi
     echo
     echo "== hid source =="
-    HID_PID="$(pgrep -f "[.]tmp-runtime-test/hid-live-source" | head -n 1 || true)"
+    HID_PID="$(pgrep -f "hid-live-source-agent.sh|[.]tmp-runtime-test/hid-live-source|BlackMambaInput/.tmp-runtime-test/hid-live-source" | head -n 1 || true)"
     if [[ -n "${HID_PID}" ]]; then
       echo "hid-live-source running pid=${HID_PID}"
     else
@@ -95,7 +95,7 @@ case "${1:-help}" in
     fi
     echo
     echo "== monitor =="
-    MONITOR_PID="$(pgrep -f "runtime/live-monitor.js" | head -n 1 || true)"
+    MONITOR_PID="$(pgrep -f "live-monitor.js --port 8137|runtime/live-monitor.js" | head -n 1 || true)"
     if [[ -n "${MONITOR_PID}" ]]; then
       echo "live-monitor running pid=${MONITOR_PID}"
     else
@@ -103,7 +103,7 @@ case "${1:-help}" in
     fi
     echo
     echo "== xcloud bridge daemon =="
-    XCLOUD_PID="$(pgrep -f "runtime/xcloud-bridge-agent.js" | head -n 1 || true)"
+    XCLOUD_PID="$(pgrep -f "xcloud-bridge-agent.js" | head -n 1 || true)"
     if [[ -n "${XCLOUD_PID}" ]]; then
       echo "xcloud-bridge-agent running pid=${XCLOUD_PID}"
     else

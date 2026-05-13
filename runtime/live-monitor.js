@@ -112,9 +112,28 @@ function main() {
   ensureDir(logPath);
   ensureDir(statusPath);
 
+  function safeAppend(file, text) {
+    try {
+      fs.appendFileSync(file, text);
+    } catch (error) {
+      if (!["ENOSPC", "EFBIG"].includes(error.code)) throw error;
+    }
+  }
+
+  function safeWrite(file, text) {
+    try {
+      fs.writeFileSync(file, text);
+    } catch (error) {
+      if (!["ENOSPC", "EFBIG"].includes(error.code)) throw error;
+    }
+  }
+
   function writeEvent(event) {
+    if (event.kind === "browser-frame" && !event.events?.length && frameCount % 300 !== 0) {
+      return;
+    }
     const row = { at: new Date().toISOString(), ...event };
-    fs.appendFileSync(logPath, `${JSON.stringify(row)}\n`);
+    safeAppend(logPath, `${JSON.stringify(row)}\n`);
     if (verbose && (event.kind !== "browser-frame" || event.events?.length)) {
       console.log(JSON.stringify(row));
     }
@@ -136,7 +155,7 @@ function main() {
       staleMs,
       ...extra
     };
-    fs.writeFileSync(statusPath, `${JSON.stringify(status, null, 2)}\n`);
+    safeWrite(statusPath, `${JSON.stringify(status, null, 2)}\n`);
   }
 
   const server = http.createServer((req, res) => {
@@ -261,4 +280,3 @@ function main() {
 }
 
 main();
-

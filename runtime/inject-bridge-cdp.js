@@ -143,24 +143,35 @@ async function main() {
     await send("Page.bringToFront");
     if (verifyOnly) {
       const result = await send("Runtime.evaluate", {
-        expression: `({
-          installed: window.__xboxCloudGamepadBridgeInstalled === true,
-          url: location.href,
-          pads: Array.from(navigator.getGamepads()).filter(Boolean).map((g) => ({
-            id: g.id,
-            mapping: g.mapping,
-            buttons: g.buttons.length,
-            axes: g.axes.length,
-            lx: Number(g.axes[0] || 0).toFixed(3),
-            ly: Number(g.axes[1] || 0).toFixed(3),
-            rx: Number(g.axes[2] || 0).toFixed(3),
-            ry: Number(g.axes[3] || 0).toFixed(3),
-            b0: g.buttons[0]?.value || 0,
-            b1: g.buttons[1]?.value || 0,
-            start: g.buttons[9]?.value || 0,
-            dpadUp: g.buttons[12]?.value || 0
-          }))
-        })`,
+        expression: `(async () => {
+          const snapshot = () => ({
+            installed: window.__xboxCloudGamepadBridgeInstalled === true,
+            version: window.__xboxCloudGamepadBridgeVersion || null,
+            url: location.href,
+            debug: typeof window.__xboxCloudGamepadBridgeDebug === "function" ? window.__xboxCloudGamepadBridgeDebug() : null,
+            pads: Array.from(navigator.getGamepads()).filter(Boolean).map((g) => ({
+              id: g.id,
+              mapping: g.mapping,
+              buttons: g.buttons.length,
+              axes: g.axes.length,
+              lx: Number(g.axes[0] || 0).toFixed(3),
+              ly: Number(g.axes[1] || 0).toFixed(3),
+              rx: Number(g.axes[2] || 0).toFixed(3),
+              ry: Number(g.axes[3] || 0).toFixed(3),
+              b0: g.buttons[0]?.value || 0,
+              b1: g.buttons[1]?.value || 0,
+              start: g.buttons[9]?.value || 0,
+              dpadUp: g.buttons[12]?.value || 0
+            }))
+          });
+          for (let i = 0; i < 20; i += 1) {
+            const value = snapshot();
+            if (value.pads.length) return value;
+            await new Promise((resolve) => setTimeout(resolve, 250));
+          }
+          return snapshot();
+        })()`,
+        awaitPromise: true,
         returnByValue: true
       });
       console.log(JSON.stringify(result.result.value, null, 2));

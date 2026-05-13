@@ -1,5 +1,5 @@
 (() => {
-  const BRIDGE_VERSION = "2026-05-13.1";
+  const BRIDGE_VERSION = "2026-05-13.3";
   if (
     window.__xboxCloudGamepadBridgeInstalled &&
     window.__xboxCloudGamepadBridgeVersion === BRIDGE_VERSION
@@ -17,9 +17,22 @@
     connected: false,
     announced: false,
     lastSeen: 0,
+    lastMessageAt: 0,
+    lastError: "",
     ws: null,
     reconnectTimer: null
   };
+
+  window.__xboxCloudGamepadBridgeDebug = () => ({
+    version: BRIDGE_VERSION,
+    connected: bridgeState.connected,
+    announced: bridgeState.announced,
+    hasFrame: Boolean(bridgeState.frame),
+    lastSeenAgeMs: bridgeState.lastSeen ? Math.round(performance.now() - bridgeState.lastSeen) : null,
+    lastMessageAgeMs: bridgeState.lastMessageAt ? Math.round(Date.now() - bridgeState.lastMessageAt) : null,
+    wsReadyState: bridgeState.ws?.readyState ?? null,
+    lastError: bridgeState.lastError
+  });
 
   const targetPattern = /(rock candy|nintendo|switch|pro controller|0e6f|0x0e6f|0187|0x0187)/i;
   const hatDirections = [
@@ -242,7 +255,15 @@
     if (!bridgeState.announced) {
       bridgeState.announced = true;
     }
-    window.dispatchEvent(new GamepadEvent("gamepadconnected", { gamepad: pad }));
+    try {
+      window.dispatchEvent(new GamepadEvent("gamepadconnected", { gamepad: pad }));
+      bridgeState.lastError = "";
+    } catch (_) {
+      const event = new Event("gamepadconnected");
+      Object.defineProperty(event, "gamepad", { value: pad, enumerable: true });
+      window.dispatchEvent(event);
+      bridgeState.lastError = "";
+    }
   }
 
   function connectLiveMonitor() {
@@ -250,6 +271,7 @@
     try {
       bridgeState.ws = new WebSocket("ws://127.0.0.1:8137/live");
     } catch (error) {
+      bridgeState.lastError = String(error?.message || error);
       bridgeState.reconnectTimer = setTimeout(connectLiveMonitor, 1000);
       return;
     }
@@ -266,9 +288,11 @@
         if (message.type === "semantic-frame" && message.frame) {
           bridgeState.frame = message.frame;
           bridgeState.lastSeen = performance.now();
+          bridgeState.lastMessageAt = Date.now();
           announceVirtualPadIfNeeded();
         }
       } catch (error) {
+        bridgeState.lastError = String(error?.message || error);
         console.warn("[Xbox Cloud Gamepad Bridge] bad live message", error);
       }
     });
@@ -276,11 +300,13 @@
     bridgeState.ws.addEventListener("close", () => {
       bridgeState.connected = false;
       bridgeState.announced = false;
+      bridgeState.lastError = "websocket closed";
       bridgeState.reconnectTimer = setTimeout(connectLiveMonitor, 1000);
     });
 
-    bridgeState.ws.addEventListener("error", () => {
+    bridgeState.ws.addEventListener("error", (event) => {
       bridgeState.connected = false;
+      bridgeState.lastError = "websocket error";
     });
   }
 
@@ -310,7 +336,13 @@
     }
 
     event.stopImmediatePropagation();
-    window.dispatchEvent(new GamepadEvent(event.type, { gamepad: normalized }));
+    try {
+      window.dispatchEvent(new GamepadEvent(event.type, { gamepad: normalized }));
+    } catch (_) {
+      const replacement = new Event(event.type);
+      Object.defineProperty(replacement, "gamepad", { value: normalized, enumerable: true });
+      window.dispatchEvent(replacement);
+    }
   };
 
   window.addEventListener("gamepadconnected", normalizeEvent, true);
