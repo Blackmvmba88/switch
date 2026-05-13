@@ -8,6 +8,7 @@ const debugPort = Number(process.env.DEBUG_PORT || 9224);
 const targetUrl = process.env.URL || "https://www.xbox.com/play";
 const profileDir = process.env.PROFILE_DIR || "/tmp/blackmamba-xcloud-cdp-profile";
 const intervalMs = Number(process.env.INTERVAL_MS || 5000);
+const autoOpenXcloud = process.env.AUTO_OPEN_XCLOUD === "1";
 const injectScript = path.join(appRoot, "runtime", "inject-bridge-cdp.js");
 const statusPath = process.env.STATUS_PATH || path.join(appRoot, "reports", "xcloud-bridge-status.json");
 
@@ -23,6 +24,7 @@ function writeStatus(status) {
     debugPort,
     targetUrl,
     profileDir,
+    autoOpenXcloud,
     ...status
   }, null, 2) + "\n");
 }
@@ -95,13 +97,21 @@ async function tick() {
   try {
     await fetchJson(`http://127.0.0.1:${debugPort}/json/version`);
   } catch (error) {
-    await launchChrome();
-    writeStatus({ state: "starting_chrome", cdp: "unavailable", error: error.message });
+    if (autoOpenXcloud) {
+      await launchChrome();
+      writeStatus({ state: "starting_chrome", cdp: "unavailable", error: error.message });
+    } else {
+      writeStatus({ state: "idle_no_cdp", cdp: "unavailable", error: error.message });
+    }
     return;
   }
 
   const targets = await getTargets();
   const playTarget = targets.find(isPlayTarget);
+  if (!playTarget && !autoOpenXcloud) {
+    writeStatus({ state: "idle_no_xcloud_tab", cdp: "available", playTarget: false, targets: targets.length });
+    return;
+  }
   const now = Date.now();
   if (now - lastInjectAt < intervalMs) {
     writeStatus({ state: "waiting", cdp: "available", playTarget: Boolean(playTarget), targets: targets.length });

@@ -20,6 +20,7 @@ Uso:
   ./bmctl axes              Muestra LX/LY/RX/RY en vivo desde xCloud
   ./bmctl status            Estado live-monitor + HID source + xCloud tab
   ./bmctl doctor            Diagnóstico HID/xCloud compatibility
+  ./bmctl doctor-advanced   Diagnóstico de estabilidad daemon/CDP/bridge/logs
   ./bmctl hid               Arranca fuente nativa HID -> live-monitor
   ./bmctl install-hid-agent Instala LaunchAgent persistente para HID
   ./bmctl daemon            Instala daemon completo: live + HID + xCloud bridge
@@ -116,6 +117,9 @@ case "${1:-help}" in
     ;;
   doctor)
     "${ROOT}/controller-doctor.sh" doctor
+    ;;
+  doctor-advanced|doctor2)
+    node "${ROOT}/runtime/advanced-doctor.js"
     ;;
   hid)
     "${ROOT}/start-hid-live-source.sh"

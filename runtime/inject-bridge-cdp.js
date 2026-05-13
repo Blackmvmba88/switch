@@ -8,6 +8,7 @@ const targetUrl = process.env.URL || "https://www.xbox.com/play";
 const bridgeSource = fs.readFileSync(path.join(root, "xbox-gamepad-bridge", "bridge.js"), "utf8");
 const reuseExisting = process.env.REUSE_XCLOUD === "1" || process.argv.includes("--reuse");
 const verifyOnly = process.env.VERIFY_ONLY === "1" || process.argv.includes("--verify");
+const bringToFront = process.env.BRING_TO_FRONT === "1" || process.argv.includes("--front");
 
 function isXboxPlayTarget(item) {
   if (item.type !== "page") return false;
@@ -140,7 +141,9 @@ async function main() {
   await cdp(target.webSocketDebuggerUrl, async (send) => {
     await send("Page.enable");
     await send("Runtime.enable");
-    await send("Page.bringToFront");
+    if (bringToFront) {
+      await send("Page.bringToFront");
+    }
     if (verifyOnly) {
       const result = await send("Runtime.evaluate", {
         expression: `(async () => {

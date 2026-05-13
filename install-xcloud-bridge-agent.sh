@@ -11,6 +11,7 @@ DEBUG_PORT="${DEBUG_PORT:-9224}"
 URL="${URL:-https://www.xbox.com/play}"
 PROFILE_DIR="${PROFILE_DIR:-/tmp/blackmamba-xcloud-cdp-profile}"
 INTERVAL_MS="${INTERVAL_MS:-5000}"
+AUTO_OPEN_XCLOUD="${AUTO_OPEN_XCLOUD:-0}"
 
 mkdir -p "${APP_ROOT}/runtime" "${APP_ROOT}/xbox-gamepad-bridge" "${APP_ROOT}/logs" "${APP_ROOT}/reports" "${AGENT_DIR}"
 cp "${ROOT}/runtime/xcloud-bridge-agent.js" "${APP_ROOT}/runtime/xcloud-bridge-agent.js"
@@ -43,6 +44,8 @@ cat > "${PLIST}" <<PLIST
     <string>${PROFILE_DIR}</string>
     <key>INTERVAL_MS</key>
     <string>${INTERVAL_MS}</string>
+    <key>AUTO_OPEN_XCLOUD</key>
+    <string>${AUTO_OPEN_XCLOUD}</string>
     <key>STATUS_PATH</key>
     <string>${APP_ROOT}/reports/xcloud-bridge-status.json</string>
   </dict>
