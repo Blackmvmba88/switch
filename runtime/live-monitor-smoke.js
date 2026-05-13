@@ -43,7 +43,7 @@ function decodeServerFrames(buffer) {
   return { messages, rest: buffer.subarray(offset) };
 }
 
-function sample(t, b0) {
+function sample(t, b1) {
   return {
     type: "browser-frame",
     device: {
@@ -56,8 +56,8 @@ function sample(t, b0) {
     sample: {
       t,
       buttons: [
-        { pressed: b0 > 0.5, touched: b0 > 0.5, value: b0 },
-        { pressed: false, touched: false, value: 0 }
+        { pressed: false, touched: false, value: 0 },
+        { pressed: b1 > 0.5, touched: b1 > 0.5, value: b1 }
       ],
       axes: [0.004, 0, 0, 0, 0, 0, 0, 0, 0, 1.286]
     }
@@ -112,7 +112,7 @@ async function main() {
       const message = JSON.parse(messageText);
       if ((message.type === "semantic-events" || message.type === "semantic-frame") && message.events?.some((event) => event.name === "A" && event.event === "pressed")) {
         sawA = true;
-        console.log("PASS: live monitor translated browser B0 into semantic A pressed");
+        console.log("PASS: live monitor translated browser B1 into semantic A pressed");
         socket.destroy();
         process.exit(0);
       }

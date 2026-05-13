@@ -97,6 +97,22 @@
       box-shadow: 0 0 15px white;
     }
 
+    .target-button.calibrating {
+      animation: pulse-target 0.8s infinite alternate;
+      transform: scale(1.35);
+      background: rgba(57, 255, 20, 0.25);
+      color: white;
+    }
+
+    @keyframes pulse-target {
+      from {
+        box-shadow: 0 0 16px white, 0 0 26px var(--neon-green);
+      }
+      to {
+        box-shadow: 0 0 28px white, 0 0 55px var(--neon-green);
+      }
+    }
+
     .target-button[data-mapped="true"] {
       border-color: var(--neon-green);
       color: var(--neon-green);
@@ -257,15 +273,15 @@
       <div id="device-info" class="neon-text-green">No controller detected</div>
       
       <div class="controls">
+        <button class="action" onclick="startFaceCalibration()" style="border-color: var(--neon-green); color: var(--neon-green);">Fortnite ABXY</button>
         <button class="action" onclick="startGuidedCalibration()" style="border-color: var(--neon-pink); color: var(--neon-pink);">Guided Calibration</button>
         <button class="action" onclick="resetMapping()">Reset Mapping</button>
         <button class="action" onclick="saveMapping()" style="border-color: var(--neon-green); color: var(--neon-green);">Save to Bridge</button>
       </div>
 
       <div class="status-panel">
-        <p id="instruction-text">1. Click a button on the visual controller or start Guided Calibration.</p>
-        <p>2. Press the corresponding button on your physical controller.</p>
-        <p>3. Repeat for all buttons and sticks.</p>
+        <p id="instruction-text">Fortnite ABXY: cuando brille A, presiona el botón físico de abajo. Y arriba, X izquierda, B derecha.</p>
+        <p>El guardado de esta pantalla es visual/local. Para aplicar al daemon usa: ./bmctl fortnite-map</p>
       </div>
 
       <div class="mapping-info" id="mapping-log">
@@ -292,6 +308,13 @@
       { id: 16, label: "Guide" }
     ];
 
+    const faceCalibration = [
+      { id: 0, label: "Xbox A", hint: "Presiona el botón físico de ABAJO" },
+      { id: 3, label: "Xbox Y", hint: "Presiona el botón físico de ARRIBA" },
+      { id: 2, label: "Xbox X", hint: "Presiona el botón físico de la IZQUIERDA" },
+      { id: 1, label: "Xbox B", hint: "Presiona el botón físico de la DERECHA" }
+    ];
+
     let currentMapping = {
       id: "default",
       buttons: {},
@@ -302,14 +325,29 @@
     let isMapping = false;
     let calibrationIndex = -1;
     let calibrationTimer = null;
+    let calibrationSteps = xboxButtons;
+    let lastPressed = new Set();
+
+    function clearCalibrationGlow() {
+      targets.forEach((target) => target.classList.remove("calibrating"));
+    }
+
+    function startFaceCalibration() {
+      calibrationSteps = faceCalibration;
+      calibrationIndex = 0;
+      log("Fortnite ABXY started: A abajo, Y arriba, X izquierda, B derecha.");
+      nextCalibrationStep();
+    }
 
     function startGuidedCalibration() {
-        calibrationIndex = 0;
-        nextCalibrationStep();
+      calibrationSteps = xboxButtons;
+      calibrationIndex = 0;
+      nextCalibrationStep();
     }
 
     function nextCalibrationStep() {
-        if (calibrationIndex >= xboxButtons.length) {
+        clearCalibrationGlow();
+        if (calibrationIndex >= calibrationSteps.length) {
             isMapping = false;
             document.getElementById('mapping-modal').style.display = 'none';
             log("Calibration complete!");
@@ -317,15 +355,16 @@
             return;
         }
 
-        const step = xboxButtons[calibrationIndex];
+        const step = calibrationSteps[calibrationIndex];
         const target = document.querySelector(`.target-button[data-id="${step.id}"]`);
         
         activeTarget = target;
         isMapping = true;
+        activeTarget?.classList.add("calibrating");
         
         document.getElementById('mapping-modal').style.display = 'flex';
         document.getElementById('modal-title').innerText = `CALIBRATION: ${step.label}`;
-        document.getElementById('modal-desc').innerText = `Presiona ${step.label} ahora`;
+        document.getElementById('modal-desc').innerText = step.hint || `Presiona ${step.label} ahora`;
         
         // Reset timer bar
         const bar = document.getElementById('timer-bar');
@@ -345,13 +384,6 @@
     }
 
 
-    // Load existing mapping
-    const saved = localStorage.getItem("blackmamba_custom_mapping");
-    if (saved) {
-      currentMapping = JSON.parse(saved);
-      updateVisuals();
-    }
-
     function log(msg) {
       const el = document.getElementById('mapping-log');
       el.innerHTML += `<div>> ${msg}</div>`;
@@ -368,16 +400,25 @@
       });
     });
 
+    // Load existing mapping after targets exist.
+    const saved = localStorage.getItem("blackmamba_custom_mapping");
+    if (saved) {
+      currentMapping = JSON.parse(saved);
+      updateVisuals();
+    }
+
     function cancelMapping() {
       isMapping = false;
       calibrationIndex = -1;
       clearTimeout(calibrationTimer);
+      clearCalibrationGlow();
       document.getElementById('mapping-modal').style.display = 'none';
       activeTarget = null;
     }
 
     function updateVisuals() {
       targets.forEach(t => {
+        t.dataset.mapped = "false";
         const id = t.dataset.id;
         if (id !== undefined && currentMapping.buttons[id] !== undefined) {
           t.dataset.mapped = "true";
@@ -388,6 +429,9 @@
     function resetMapping() {
       currentMapping = { buttons: {}, axes: { 0: 0, 1: 1, 2: 2, 3: 3 } };
       localStorage.removeItem("blackmamba_custom_mapping");
+      Object.keys(localStorage)
+        .filter((key) => key.startsWith("mapping_"))
+        .forEach((key) => localStorage.removeItem(key));
       updateVisuals();
       log("Mapping cleared.");
     }
@@ -400,26 +444,32 @@
       localStorage.setItem("blackmamba_custom_mapping", JSON.stringify(currentMapping));
       if (pad) localStorage.setItem(`mapping_${pad.id}`, JSON.stringify(currentMapping));
       
-      log("Mapping saved! Bridge will use it on next reload.");
-      alert("Mapeo guardado correctamente.");
+      log("Mapping saved locally. Para daemon/xCloud ejecuta tambien: ./bmctl fortnite-map");
+      alert("Mapeo visual guardado. Para Fortnite/xCloud ejecuta en terminal: ./bmctl fortnite-map");
     }
 
     function handleInput() {
       const pads = navigator.getGamepads();
       const pad = pads[0];
-      if (!pad) return;
+      if (!pad) {
+        document.getElementById('device-info').innerText = "No controller detected";
+        requestAnimationFrame(handleInput);
+        return;
+      }
 
       document.getElementById('device-info').innerText = pad.id.substring(0, 30) + "...";
 
       if (isMapping && activeTarget) {
         // Check buttons
         pad.buttons.forEach((b, i) => {
-          if (b.pressed) {
+          const nowPressed = Boolean(b.pressed || b.value > 0.5);
+          if (nowPressed && !lastPressed.has(i)) {
             const targetId = activeTarget.dataset.id;
             if (targetId !== undefined) {
               currentMapping.buttons[targetId] = i;
               log(`Mapped physical B${i} to Xbox ${activeTarget.innerText || 'Button'}`);
               updateVisuals();
+              clearCalibrationGlow();
               
               if (calibrationIndex !== -1) {
                   clearTimeout(calibrationTimer);
@@ -473,12 +523,17 @@
       rs.style.transform = `translate(${rx * 20}px, ${ry * 20}px)`;
       
       requestAnimationFrame(handleInput);
+      lastPressed = new Set(
+        Array.from(pad.buttons || [])
+          .map((button, index) => (button.pressed || button.value > 0.5) ? index : null)
+          .filter((index) => index !== null)
+      );
     }
 
     window.addEventListener("gamepadconnected", () => {
       log("Gamepad connected.");
-      handleInput();
     });
+    handleInput();
   </script>
 </body>
 </html>

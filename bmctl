@@ -29,6 +29,8 @@ Uso:
   ./bmctl lab               Abre el laboratorio visual de gamepad
   ./bmctl map               Abre el mapeador visual BlackMamba (XPout style)
   ./bmctl view              Abre el visualizador live de telemetría (Neon)
+  ./bmctl fortnite-map      Mapea ABXY por posicion fisica Xbox para Fortnite
+  ./bmctl switch-map        Restaura ABXY por etiquetas Nintendo/Switch
   ./bmctl test              Corre pruebas offline/live smoke
   ./bmctl save              Guarda commit local del runtime
   ./bmctl logs              Muestra logs recientes
@@ -138,6 +140,16 @@ case "${1:-help}" in
     ;;
   view)
     open "file://${ROOT}/gamepad-test/visualizer.html"
+    ;;
+  fortnite-map)
+    node "${ROOT}/runtime/apply-face-layout.js" xbox-physical
+    launchctl kickstart -k "gui/$(id -u)/com.blackmamba.live-monitor" >/dev/null 2>&1 || true
+    echo "Perfil Fortnite/Xbox aplicado. Si xCloud ya estaba abierto: ./bmctl reinject"
+    ;;
+  switch-map)
+    node "${ROOT}/runtime/apply-face-layout.js" switch-labels
+    launchctl kickstart -k "gui/$(id -u)/com.blackmamba.live-monitor" >/dev/null 2>&1 || true
+    echo "Perfil Nintendo/Switch aplicado. Si xCloud ya estaba abierto: ./bmctl reinject"
     ;;
   test)
     "${ROOT}/test-runtime.sh"

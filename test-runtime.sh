@@ -43,13 +43,13 @@ const trace = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
 function hasJustPressed(name) {
   return trace.frames.some((frame) => frame.transitions?.[name]?.justPressed === true);
 }
-for (const name of ["A", "X", "DPad_Up", "DPad_Right"]) {
+for (const name of ["A", "B", "DPad_Up", "DPad_Right"]) {
   if (!hasJustPressed(name)) {
     console.error(`Missing justPressed for ${name}`);
     process.exit(1);
   }
 }
-console.log("Trace contains A, X, DPad_Up, DPad_Right transitions");
+console.log("Trace contains A, B, DPad_Up, DPad_Right transitions");
 NODE
 
 echo "== Trace summary =="

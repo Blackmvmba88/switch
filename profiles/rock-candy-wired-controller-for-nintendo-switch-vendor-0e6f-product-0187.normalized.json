@@ -7,30 +7,34 @@
     "buttons": 14,
     "axes": 10
   },
-  "layout": "switch-rock-candy",
+  "layout": "switch-rock-candy:xbox-physical",
   "controllerFamily": "directinput-like",
   "dpadMode": "hat-axis",
   "triggerMode": "buttons",
   "semantic": {
     "A": {
-      "source": "B0",
-      "kind": "button",
-      "index": 0
-    },
-    "B": {
-      "source": "B2",
-      "kind": "button",
-      "index": 2
-    },
-    "X": {
       "source": "B1",
       "kind": "button",
-      "index": 1
+      "index": 1,
+      "confidence": 0.99
     },
-    "Y": {
+    "B": {
+      "source": "B0",
+      "kind": "button",
+      "index": 0,
+      "confidence": 0.99
+    },
+    "X": {
       "source": "B3",
       "kind": "button",
-      "index": 3
+      "index": 3,
+      "confidence": 0.99
+    },
+    "Y": {
+      "source": "B2",
+      "kind": "button",
+      "index": 2,
+      "confidence": 0.99
     },
     "LB": {
       "source": "B4",
@@ -172,5 +176,6 @@
       "Left": 0.714,
       "Neutral": 1.286
     }
-  }
+  },
+  "updatedAt": "2026-05-13T11:01:05.531Z"
 }
