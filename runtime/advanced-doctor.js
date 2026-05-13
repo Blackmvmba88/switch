@@ -57,6 +57,26 @@ function status(label, pass, detail = "") {
   console.log(`${pass ? "PASS" : "FAIL"} ${label}${detail ? `: ${detail}` : ""}`);
 }
 
+function psRows(pattern) {
+  const out = run("ps", ["-axo", "pid,ppid,rss,command"]);
+  return out.split(/\n/)
+    .filter((line) => pattern.test(line) && !/advanced-doctor\.js/.test(line))
+    .map((line) => {
+      const match = line.trim().match(/^(\d+)\s+(\d+)\s+(\d+)\s+(.+)$/);
+      return match ? {
+        pid: Number(match[1]),
+        ppid: Number(match[2]),
+        rssKb: Number(match[3]),
+        command: match[4]
+      } : null;
+    })
+    .filter(Boolean);
+}
+
+function formatMb(kb) {
+  return `${Math.round(kb / 1024)}MB`;
+}
+
 async function main() {
   console.log("BlackMamba Advanced Doctor");
   console.log(`Root: ${root}`);
@@ -76,11 +96,27 @@ async function main() {
     console.log(`frames=${liveStatus.frameCount} clients=${liveStatus.clients}`);
   }
 
+  const liveRows = psRows(/live-monitor\.js/);
+  const liveRssKb = liveRows.reduce((sum, row) => sum + row.rssKb, 0);
+  status("Live monitor memory", liveRssKb > 0 && liveRssKb < 220 * 1024, liveRssKb ? `${formatMb(liveRssKb)} rss` : "not running");
+
+  const hidRows = psRows(/hid-live-source-agent\.sh|[.]tmp-runtime-test\/hid-live-source/);
+  const appHidRows = hidRows.filter((row) => /Application Support\/BlackMambaInput/.test(row.command));
+  const repoHidRows = hidRows.filter((row) => /Documents\/Codex\/2026-04-28\/acabo-de-conectar-un-control-ruby/.test(row.command));
+  status("HID source duplicates", repoHidRows.length === 0 || appHidRows.length === 0, `app=${appHidRows.length} repo=${repoHidRows.length}`);
+  for (const row of hidRows.slice(0, 8)) {
+    console.log(`  hid pid=${row.pid} ppid=${row.ppid} rss=${formatMb(row.rssKb)} ${row.command}`);
+  }
+
   const xcloudStatus = readJson(path.join(appRoot, "reports/xcloud-bridge-status.json"));
   status("xCloud bridge status file", Boolean(xcloudStatus), xcloudStatus?.state || "missing");
   if (xcloudStatus) {
-    status("xCloud bridge CDP", xcloudStatus.cdp === "available", `state=${xcloudStatus.state} playTarget=${xcloudStatus.playTarget}`);
+    const cdpExpectedIdle = xcloudStatus.autoOpenXcloud === false && xcloudStatus.state === "idle_no_cdp";
+    status("xCloud bridge CDP", xcloudStatus.cdp === "available" || cdpExpectedIdle, `state=${xcloudStatus.state} playTarget=${xcloudStatus.playTarget || "n/a"}`);
     console.log(`autoOpenXcloud=${xcloudStatus.autoOpenXcloud} targets=${xcloudStatus.targets ?? "n/a"}`);
+    if (cdpExpectedIdle) {
+      console.log("  nota: CDP apagado es esperado en modo no intrusivo; corre ./bmctl wake para jugar.");
+    }
   }
 
   const version = await fetchJson(`http://127.0.0.1:${debugPort}/json/version`);

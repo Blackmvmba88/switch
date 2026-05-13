@@ -7,6 +7,9 @@ const { frameFromSample } = require("./translate-sample.js");
 
 const ROOT = path.resolve(__dirname, "..");
 const DEFAULT_PROFILE = path.join(ROOT, "profiles", "rock-candy-wired-controller-for-nintendo-switch-vendor-0e6f-product-0187.normalized.json");
+const MAX_PENDING_BYTES = Number(process.env.BM_MAX_PENDING_BYTES || 1024 * 1024);
+const MAX_CLIENTS = Number(process.env.BM_MAX_CLIENTS || 8);
+const CLIENT_IDLE_MS = Number(process.env.BM_CLIENT_IDLE_MS || 20000);
 
 function argValue(name, fallback = "") {
   const index = process.argv.indexOf(name);
@@ -170,13 +173,25 @@ function main() {
 
   const clients = new Set();
 
+  function cleanupClient(client, reason = "closed") {
+    if (!clients.has(client)) return;
+    clients.delete(client);
+    clientCount = clients.size;
+    writeEvent({ kind: "browser-disconnected", reason, clients: clientCount });
+    writeStatus();
+  }
+
   function broadcast(message) {
     const frame = encodeWsFrame(message);
     for (const client of clients) {
       try {
-        client.write(frame);
+        const ok = client.write(frame);
+        if (!ok && client.writableLength > MAX_PENDING_BYTES) {
+          client.destroy(new Error("slow websocket client"));
+          cleanupClient(client, "slow-client");
+        }
       } catch (err) {
-        clients.delete(client);
+        cleanupClient(client, "write-error");
       }
     }
   }
@@ -206,7 +221,14 @@ function main() {
       ""
     ].join("\r\n"));
 
+    if (clients.size >= MAX_CLIENTS) {
+      socket.end();
+      writeEvent({ kind: "browser-rejected", reason: "too-many-clients", clients: clients.size });
+      return;
+    }
+
     clients.add(socket);
+    socket.setTimeout(CLIENT_IDLE_MS);
     clientCount = clients.size;
     writeEvent({ kind: "browser-connected", clients: clientCount });
     writeStatus();
@@ -214,7 +236,15 @@ function main() {
 
     let pending = Buffer.alloc(0);
     socket.on("data", (chunk) => {
+      socket.setTimeout(CLIENT_IDLE_MS);
       pending = Buffer.concat([pending, chunk]);
+      if (pending.length > MAX_PENDING_BYTES) {
+        writeEvent({ kind: "browser-error", message: `pending websocket buffer exceeded ${MAX_PENDING_BYTES} bytes` });
+        socket.destroy(new Error("websocket pending buffer too large"));
+        cleanupClient(socket, "pending-buffer-limit");
+        return;
+      }
+
       const decoded = decodeWsFrames(pending);
       pending = decoded.rest;
 
@@ -224,7 +254,14 @@ function main() {
           return;
         }
 
-        const message = JSON.parse(item.text);
+        let message;
+        try {
+          message = JSON.parse(item.text);
+        } catch (error) {
+          writeEvent({ kind: "browser-error", message: `invalid json: ${error.message}` });
+          continue;
+        }
+
         if (message.type === "browser-frame" && message.sample) {
           lastBrowserFrameAt = Date.now();
           frameCount += 1;
@@ -255,17 +292,16 @@ function main() {
       }
     });
 
-    socket.on("close", () => {
-      clients.delete(socket);
-      clientCount = clients.size;
-      writeEvent({ kind: "browser-disconnected", clients: clientCount });
-      writeStatus();
+    socket.on("close", () => cleanupClient(socket, "close"));
+    socket.on("end", () => cleanupClient(socket, "end"));
+    socket.on("timeout", () => {
+      socket.destroy(new Error("websocket idle timeout"));
+      cleanupClient(socket, "idle-timeout");
     });
 
     socket.on("error", (error) => {
-      clients.delete(socket);
-      clientCount = clients.size;
       writeEvent({ kind: "browser-error", message: error.message });
+      cleanupClient(socket, "error");
     });
   });
 

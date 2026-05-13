@@ -22,6 +22,8 @@ Uso:
   ./bmctl status            Estado live-monitor + HID source + xCloud tab
   ./bmctl doctor            Diagnóstico HID/xCloud compatibility
   ./bmctl doctor-advanced   Diagnóstico de estabilidad daemon/CDP/bridge/logs
+  ./bmctl ram               Muestra presión de memoria y procesos BlackMamba
+  ./bmctl recycle           Reinicia daemons BlackMamba y mata HID legacy del repo
   ./bmctl hid               Arranca fuente nativa HID -> live-monitor
   ./bmctl install-hid-agent Instala LaunchAgent persistente para HID
   ./bmctl daemon            Instala daemon completo: live + HID + xCloud bridge
@@ -46,6 +48,38 @@ HELP
 
 chrome_tabs() {
   node -e "(async()=>{try{const tabs=await (await fetch('http://127.0.0.1:${DEBUG_PORT}/json')).json(); console.log(tabs.map((t,i)=>i+' '+t.type+' '+t.title+' '+t.url).join('\\n'));}catch(e){console.log('CDP no disponible en puerto ${DEBUG_PORT}')}})()"
+}
+
+kill_legacy_repo_hid() {
+  local pids=()
+  while IFS= read -r pid; do
+    [[ -n "${pid}" ]] && pids+=("${pid}")
+  done < <(pgrep -f "${ROOT}/[.]tmp-runtime-test/hid-live-source|bash -c .*${ROOT}/[.]tmp-runtime-test/hid-live-source" || true)
+
+  if [[ "${#pids[@]}" -gt 0 ]]; then
+    for pid in "${pids[@]}"; do
+      pkill -P "${pid}" >/dev/null 2>&1 || true
+      kill "${pid}" >/dev/null 2>&1 || true
+    done
+    echo "HID legacy del repo detenido: ${pids[*]}"
+  fi
+}
+
+kick_agent() {
+  local label="$1"
+  launchctl kickstart -k "gui/$(id -u)/${label}" >/dev/null 2>&1 &
+  local pid="$!"
+  local waited=0
+  while kill -0 "${pid}" >/dev/null 2>&1; do
+    if [[ "${waited}" -ge 4 ]]; then
+      kill "${pid}" >/dev/null 2>&1 || true
+      echo "Aviso: kickstart timeout para ${label}; launchd lo mantiene con KeepAlive."
+      return 0
+    fi
+    sleep 1
+    waited=$((waited + 1))
+  done
+  wait "${pid}" >/dev/null 2>&1 || true
 }
 
 case "${1:-help}" in
@@ -124,6 +158,23 @@ case "${1:-help}" in
     ;;
   doctor-advanced|doctor2)
     node "${ROOT}/runtime/advanced-doctor.js"
+    ;;
+  ram|memory)
+    echo "== memoria del sistema =="
+    memory_pressure | tail -n 8
+    echo
+    echo "== procesos BlackMamba =="
+    ps -axo pid,ppid,rss,command | rg -i 'BlackMambaInput|live-monitor|hid-live-source|xcloud-bridge' || true
+    ;;
+  recycle|restart-runtime)
+    echo "== reciclando runtime BlackMamba =="
+    kill_legacy_repo_hid
+    "${ROOT}/install-live-monitor-agent.sh" >/dev/null
+    "${ROOT}/install-hid-live-source-agent.sh" >/dev/null
+    kick_agent "com.blackmamba.live-monitor"
+    kick_agent "com.blackmamba.hid-live-source"
+    kick_agent "com.blackmamba.xcloud-bridge"
+    echo "Runtime reciclado. Para jugar: ./bmctl wake"
     ;;
   hid)
     "${ROOT}/start-hid-live-source.sh"

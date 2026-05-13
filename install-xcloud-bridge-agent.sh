@@ -13,6 +13,22 @@ PROFILE_DIR="${PROFILE_DIR:-/tmp/blackmamba-xcloud-cdp-profile}"
 INTERVAL_MS="${INTERVAL_MS:-5000}"
 AUTO_OPEN_XCLOUD="${AUTO_OPEN_XCLOUD:-0}"
 
+kick_agent() {
+  launchctl kickstart -k "gui/$(id -u)/${LABEL}" >/dev/null 2>&1 &
+  local pid="$!"
+  local waited=0
+  while kill -0 "${pid}" >/dev/null 2>&1; do
+    if [[ "${waited}" -ge 4 ]]; then
+      kill "${pid}" >/dev/null 2>&1 || true
+      echo "Aviso: kickstart timeout para ${LABEL}; launchd lo mantendra con KeepAlive."
+      return 0
+    fi
+    sleep 1
+    waited=$((waited + 1))
+  done
+  wait "${pid}" >/dev/null 2>&1 || true
+}
+
 mkdir -p "${APP_ROOT}/runtime" "${APP_ROOT}/xbox-gamepad-bridge" "${APP_ROOT}/logs" "${APP_ROOT}/reports" "${AGENT_DIR}"
 cp "${ROOT}/runtime/xcloud-bridge-agent.js" "${APP_ROOT}/runtime/xcloud-bridge-agent.js"
 cp "${ROOT}/runtime/inject-bridge-cdp.js" "${APP_ROOT}/runtime/inject-bridge-cdp.js"
@@ -65,7 +81,7 @@ PLIST
 
 launchctl bootout "gui/$(id -u)" "${PLIST}" >/dev/null 2>&1 || true
 launchctl bootstrap "gui/$(id -u)" "${PLIST}"
-launchctl kickstart -k "gui/$(id -u)/${LABEL}"
+kick_agent
 
 echo "Installed xCloud Bridge LaunchAgent: ${PLIST}"
 echo "Status: ${APP_ROOT}/reports/xcloud-bridge-status.json"

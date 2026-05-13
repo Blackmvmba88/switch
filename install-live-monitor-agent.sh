@@ -9,6 +9,22 @@ PLIST="${AGENT_DIR}/${LABEL}.plist"
 NODE_BIN="$(command -v node)"
 PORT="${LIVE_PORT:-8137}"
 
+kick_agent() {
+  launchctl kickstart -k "gui/$(id -u)/${LABEL}" >/dev/null 2>&1 &
+  local pid="$!"
+  local waited=0
+  while kill -0 "${pid}" >/dev/null 2>&1; do
+    if [[ "${waited}" -ge 4 ]]; then
+      kill "${pid}" >/dev/null 2>&1 || true
+      echo "Aviso: kickstart timeout para ${LABEL}; launchd lo mantendra con KeepAlive."
+      return 0
+    fi
+    sleep 1
+    waited=$((waited + 1))
+  done
+  wait "${pid}" >/dev/null 2>&1 || true
+}
+
 mkdir -p "${APP_ROOT}/runtime" "${APP_ROOT}/profiles" "${APP_ROOT}/logs" "${APP_ROOT}/reports" "${AGENT_DIR}"
 
 cp "${PROJECT_ROOT}/runtime/live-monitor.js" "${APP_ROOT}/runtime/live-monitor.js"
@@ -50,7 +66,7 @@ PLIST
 
 launchctl bootout "gui/$(id -u)" "${PLIST}" >/dev/null 2>&1 || true
 launchctl bootstrap "gui/$(id -u)" "${PLIST}"
-launchctl kickstart -k "gui/$(id -u)/${LABEL}"
+kick_agent
 
 echo "Installed Live Monitor LaunchAgent: ${PLIST}"
 echo "WebSocket: ws://127.0.0.1:${PORT}/live"

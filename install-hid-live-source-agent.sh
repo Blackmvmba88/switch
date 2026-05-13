@@ -7,6 +7,22 @@ PLIST="${HOME}/Library/LaunchAgents/${LABEL}.plist"
 APP_ROOT="${HOME}/Library/Application Support/BlackMambaInput"
 LOG_DIR="${APP_ROOT}/logs"
 
+kick_agent() {
+  launchctl kickstart -k "gui/$(id -u)/${LABEL}" >/dev/null 2>&1 &
+  local pid="$!"
+  local waited=0
+  while kill -0 "${pid}" >/dev/null 2>&1; do
+    if [[ "${waited}" -ge 4 ]]; then
+      kill "${pid}" >/dev/null 2>&1 || true
+      echo "Aviso: kickstart timeout para ${LABEL}; launchd lo mantendra con KeepAlive."
+      return 0
+    fi
+    sleep 1
+    waited=$((waited + 1))
+  done
+  wait "${pid}" >/dev/null 2>&1 || true
+}
+
 mkdir -p "${HOME}/Library/LaunchAgents" "${LOG_DIR}" "${APP_ROOT}/runtime"
 cp "${ROOT}/hid-live-source-agent.sh" "${APP_ROOT}/hid-live-source-agent.sh"
 cp "${ROOT}/runtime/hid-live-source.swift" "${APP_ROOT}/runtime/hid-live-source.swift"
@@ -40,7 +56,7 @@ PLIST
 
 launchctl bootout "gui/$(id -u)" "${PLIST}" >/dev/null 2>&1 || true
 launchctl bootstrap "gui/$(id -u)" "${PLIST}"
-launchctl kickstart -k "gui/$(id -u)/${LABEL}"
+kick_agent
 
 echo "Installed HID Live Source LaunchAgent: ${PLIST}"
 echo "Logs: ${LOG_DIR}/hid-live-source.log"
