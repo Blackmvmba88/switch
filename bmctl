@@ -24,6 +24,8 @@ Uso:
   ./bmctl doctor-advanced   Diagnóstico de estabilidad daemon/CDP/bridge/logs
   ./bmctl ram               Muestra presión de memoria y procesos BlackMamba
   ./bmctl recycle           Reinicia daemons BlackMamba y mata HID legacy del repo
+  ./bmctl game-on           Activa modo juego: auto-reabre xCloud si CDP cae
+  ./bmctl game-off          Desactiva modo juego: daemon no intrusivo
   ./bmctl hid               Arranca fuente nativa HID -> live-monitor
   ./bmctl install-hid-agent Instala LaunchAgent persistente para HID
   ./bmctl daemon            Instala daemon completo: live + HID + xCloud bridge
@@ -175,6 +177,17 @@ case "${1:-help}" in
     kick_agent "com.blackmamba.hid-live-source"
     kick_agent "com.blackmamba.xcloud-bridge"
     echo "Runtime reciclado. Para jugar: ./bmctl wake"
+    ;;
+  game-on|gaming-on)
+    echo "== modo juego ON =="
+    AUTO_OPEN_XCLOUD=1 "${ROOT}/install-xcloud-bridge-agent.sh" >/dev/null
+    "${ROOT}/play-xcloud-cdp-bridge.sh"
+    echo "Modo juego activo: el daemon reabre/reinyecta si Chrome CDP cae."
+    ;;
+  game-off|gaming-off)
+    echo "== modo juego OFF =="
+    AUTO_OPEN_XCLOUD=0 "${ROOT}/install-xcloud-bridge-agent.sh" >/dev/null
+    echo "Modo no intrusivo activo: xCloud solo abre con ./bmctl wake."
     ;;
   hid)
     "${ROOT}/start-hid-live-source.sh"

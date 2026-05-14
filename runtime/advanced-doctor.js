@@ -96,6 +96,16 @@ async function main() {
     console.log(`frames=${liveStatus.frameCount} clients=${liveStatus.clients}`);
   }
 
+  const liveProfile = liveStatus?.profilePath ? readJson(liveStatus.profilePath) : null;
+  if (liveProfile) {
+    const requiredSemantics = ["A", "B", "X", "Y", "LB", "RB", "LT", "RT", "LX", "LY", "RX", "RY", "DPad_Up", "DPad_Down", "DPad_Left", "DPad_Right"];
+    const missing = requiredSemantics.filter((name) => !liveProfile.semantic?.[name]);
+    status("Live profile semantics", missing.length === 0, missing.length ? `missing=${missing.join(",")}` : `keys=${Object.keys(liveProfile.semantic || {}).length}`);
+    if (liveProfile.semantic?.LT || liveProfile.semantic?.RT) {
+      console.log(`  triggers LT=${liveProfile.semantic.LT?.source || "missing"} RT=${liveProfile.semantic.RT?.source || "missing"} mode=${liveProfile.triggerMode || "n/a"}`);
+    }
+  }
+
   const liveRows = psRows(/live-monitor\.js/);
   const liveRssKb = liveRows.reduce((sum, row) => sum + row.rssKb, 0);
   status("Live monitor memory", liveRssKb > 0 && liveRssKb < 220 * 1024, liveRssKb ? `${formatMb(liveRssKb)} rss` : "not running");

@@ -163,6 +163,8 @@ async function main() {
               ry: Number(g.axes[3] || 0).toFixed(3),
               b0: g.buttons[0]?.value || 0,
               b1: g.buttons[1]?.value || 0,
+              lt: g.buttons[6]?.value || 0,
+              rt: g.buttons[7]?.value || 0,
               start: g.buttons[9]?.value || 0,
               dpadUp: g.buttons[12]?.value || 0
             }))

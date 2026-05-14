@@ -52,6 +52,38 @@ for (const name of ["A", "B", "DPad_Up", "DPad_Right"]) {
 console.log("Trace contains A, B, DPad_Up, DPad_Right transitions");
 NODE
 
+echo "== Trigger assertions =="
+node - "${PROFILE_FIXTURE}" <<'NODE'
+const fs = require("fs");
+const { frameFromSample } = require("./runtime/translate-sample.js");
+const profile = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+for (const name of ["LT", "RT"]) {
+  if (!profile.semantic?.[name]) {
+    console.error(`Missing semantic binding for ${name}`);
+    process.exit(1);
+  }
+}
+const makeButtons = (active = {}) => Array.from({ length: 17 }, (_, index) => ({
+  pressed: Boolean(active[index]),
+  touched: Boolean(active[index]),
+  value: active[index] ? 1 : 0
+}));
+const axes = [0, 0, 0, 0, 0, 0, 0, 0, 0, 1.286];
+let previous = frameFromSample({ t: 0, buttons: makeButtons(), axes }, profile, null);
+const lt = frameFromSample({ t: 50, buttons: makeButtons({ 6: true }), axes }, profile, previous);
+previous = frameFromSample({ t: 100, buttons: makeButtons(), axes }, profile, lt);
+const rt = frameFromSample({ t: 150, buttons: makeButtons({ 7: true }), axes }, profile, previous);
+if (lt.transitions?.LT?.justPressed !== true || lt.buttons?.LT?.value !== 1) {
+  console.error("LT did not translate from B6 into a digital trigger press");
+  process.exit(1);
+}
+if (rt.transitions?.RT?.justPressed !== true || rt.buttons?.RT?.value !== 1) {
+  console.error("RT did not translate from B7 into a digital trigger press");
+  process.exit(1);
+}
+console.log("Triggers LT/RT translate from B6/B7");
+NODE
+
 echo "== Trace summary =="
 node "${ROOT}/runtime/summarize-trace.js" "${TRACE_OUT}"
 

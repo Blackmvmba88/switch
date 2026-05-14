@@ -5,8 +5,30 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BIN="${ROOT}/.tmp-runtime-test/hid-live-source"
 PID_FILE="${ROOT}/logs/hid-live-source.pid"
 LOG_FILE="${ROOT}/logs/hid-live-source.log"
+APP_ROOT="${HOME}/Library/Application Support/BlackMambaInput"
 
 mkdir -p "${ROOT}/.tmp-runtime-test" "${ROOT}/logs"
+
+app_daemon_pid() {
+  pgrep -f "Application Support/BlackMambaInput/[.]tmp-runtime-test/hid-live-source|Application Support/BlackMambaInput/hid-live-source-agent.sh" | head -n 1 || true
+}
+
+app_daemon_loaded() {
+  launchctl print "gui/$(id -u)/com.blackmamba.hid-live-source" >/dev/null 2>&1
+}
+
+wait_for_app_daemon() {
+  local pid=""
+  for _ in {1..12}; do
+    pid="$(app_daemon_pid)"
+    if [[ -n "${pid}" ]]; then
+      echo "${pid}"
+      return 0
+    fi
+    sleep 0.5
+  done
+  return 1
+}
 
 running_pid() {
   if [[ -f "${PID_FILE}" ]]; then
@@ -17,8 +39,25 @@ running_pid() {
       return 0
     fi
   fi
-  pgrep -f "[.]tmp-runtime-test/hid-live-source" | head -n 1 || true
+  pgrep -f "${ROOT}/[.]tmp-runtime-test/hid-live-source|bash -c .*${ROOT}/[.]tmp-runtime-test/hid-live-source" | head -n 1 || true
 }
+
+APP_DAEMON_PID="$(app_daemon_pid)"
+if [[ -n "${APP_DAEMON_PID}" ]]; then
+  echo "hid-live-source daemon ya esta corriendo: ${APP_DAEMON_PID}"
+  echo "Usando daemon persistente en: ${APP_ROOT}"
+  exit 0
+fi
+
+if app_daemon_loaded; then
+  echo "hid-live-source daemon cargado; esperando proceso persistente..."
+  if APP_DAEMON_PID="$(wait_for_app_daemon)"; then
+    echo "hid-live-source daemon ya esta corriendo: ${APP_DAEMON_PID}"
+    echo "Usando daemon persistente en: ${APP_ROOT}"
+    exit 0
+  fi
+  echo "Aviso: daemon cargado pero sin proceso visible; usando fallback repo."
+fi
 
 RUNNING_PID="$(running_pid)"
 if [[ -n "${RUNNING_PID}" ]]; then

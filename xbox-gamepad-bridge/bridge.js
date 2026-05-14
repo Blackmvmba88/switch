@@ -1,10 +1,20 @@
 (() => {
-  const BRIDGE_VERSION = "2026-05-13.3";
+  const BRIDGE_VERSION = "2026-05-14.1";
+  if (window.top !== window) {
+    return;
+  }
   if (
     window.__xboxCloudGamepadBridgeInstalled &&
     window.__xboxCloudGamepadBridgeVersion === BRIDGE_VERSION
   ) {
     return;
+  }
+  if (typeof window.__xboxCloudGamepadBridgeCleanup === "function") {
+    try {
+      window.__xboxCloudGamepadBridgeCleanup();
+    } catch (_) {
+      // Best-effort cleanup before replacing a previous bridge instance.
+    }
   }
   window.__xboxCloudGamepadBridgeInstalled = true;
   window.__xboxCloudGamepadBridgeVersion = BRIDGE_VERSION;
@@ -22,6 +32,7 @@
     ws: null,
     reconnectTimer: null
   };
+  let announceInterval = null;
 
   window.__xboxCloudGamepadBridgeDebug = () => ({
     version: BRIDGE_VERSION,
@@ -345,9 +356,23 @@
     }
   };
 
+  window.__xboxCloudGamepadBridgeCleanup = () => {
+    clearTimeout(bridgeState.reconnectTimer);
+    clearInterval(announceInterval);
+    window.removeEventListener("gamepadconnected", normalizeEvent, true);
+    window.removeEventListener("gamepaddisconnected", normalizeEvent, true);
+    try {
+      bridgeState.ws?.close();
+    } catch (_) {
+      // Ignore cleanup close failures.
+    }
+    bridgeState.connected = false;
+    bridgeState.announced = false;
+  };
+
   window.addEventListener("gamepadconnected", normalizeEvent, true);
   window.addEventListener("gamepaddisconnected", normalizeEvent, true);
   connectLiveMonitor();
-  window.setInterval(announceVirtualPadIfNeeded, 1000);
+  announceInterval = window.setInterval(announceVirtualPadIfNeeded, 1000);
   console.info("[Xbox Cloud Gamepad Bridge] active");
 })();
