@@ -1,5 +1,33 @@
 # BlackMamba Input Runtime
 
+## App local
+
+```bash
+./bmctl app
+```
+
+Abre **BlackMamba Control Room** en `http://127.0.0.1:8147`.
+
+La app centraliza:
+
+- Wake/reinject/verify de xCloud.
+- Prueba live de palancas, gatillos, Start, Select/Back, L3, R3 y Guide.
+- Doctor avanzado, RAM, recycle, logs y limpieza.
+- Cambio rapido entre perfil Fortnite/Xbox fisico y Switch labels.
+- Diagnostico de colapso con `./bmctl app-why`.
+
+La app corre como LaunchAgent (`com.blackmamba.control-room`) para que no se
+muera cuando termina la terminal que la abrio.
+
+Flujo corto para Fortnite:
+
+```bash
+./bmctl fortnite-map
+./bmctl app
+```
+
+Luego usar `Wake xCloud`, `Verify` y `Botones Live` desde la app.
+
 Runtime local para convertir un control Rock Candy / Nintendo Switch HID en un gamepad Xbox virtual dentro de Xbox Cloud Gaming.
 
 Estado actual:
@@ -136,4 +164,3 @@ node runtime/semantic-diff.js profiles/a.normalized.json profiles/b.normalized.j
 - [runtime/inject-bridge-cdp.js](./runtime/inject-bridge-cdp.js)
 - [xbox-gamepad-bridge/bridge.js](./xbox-gamepad-bridge/bridge.js)
 - [profiles/rock-candy-wired-controller-for-nintendo-switch-vendor-0e6f-product-0187.normalized.json](./profiles/rock-candy-wired-controller-for-nintendo-switch-vendor-0e6f-product-0187.normalized.json)
-

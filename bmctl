@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEBUG_PORT="${DEBUG_PORT:-9224}"
+APP_PORT="${BM_APP_PORT:-8147}"
 APP_STATUS="${HOME}/Library/Application Support/BlackMambaInput/reports/live-status.json"
 XCLOUD_STATUS="${HOME}/Library/Application Support/BlackMambaInput/reports/xcloud-bridge-status.json"
 APP_HID_PID_FILE="${HOME}/Library/Application Support/BlackMambaInput/logs/hid-live-source.pid"
@@ -20,6 +21,9 @@ Uso:
   ./bmctl verify            Verifica Xbox virtual; si no hay target, abre xCloud
   ./bmctl axes              Muestra LX/LY/RX/RY en vivo desde xCloud
   ./bmctl buttons           Muestra palancas + LB/RB/LT/RT/Back/Start en vivo
+  ./bmctl app               Abre BlackMamba Control Room
+  ./bmctl app-stop          Detiene BlackMamba Control Room
+  ./bmctl app-why           Diagnostica por que Control Room se apago
   ./bmctl status            Estado live-monitor + HID source + xCloud tab
   ./bmctl doctor            Diagnóstico HID/xCloud compatibility
   ./bmctl doctor-advanced   Diagnóstico de estabilidad daemon/CDP/bridge/logs
@@ -110,6 +114,37 @@ case "${1:-help}" in
   axes|palancas|buttons|botones)
     "${ROOT}/start-hid-live-source.sh"
     node "${ROOT}/runtime/watch-virtual-axes.js" "${DEBUG_PORT}" "${DURATION_MS:-15000}"
+    ;;
+  app|ui|control-room)
+    mkdir -p "${ROOT}/logs"
+    if ! curl -fsS "http://127.0.0.1:${APP_PORT}/api/status" >/dev/null 2>&1; then
+      "${ROOT}/install-control-room-agent.sh" >/dev/null
+      for _ in {1..30}; do
+        if curl -fsS "http://127.0.0.1:${APP_PORT}/api/status" >/dev/null 2>&1; then
+          break
+        fi
+        sleep 0.2
+      done
+    fi
+    open "http://127.0.0.1:${APP_PORT}"
+    echo "BlackMamba Control Room: http://127.0.0.1:${APP_PORT}"
+    ;;
+  app-stop|ui-stop|control-room-stop)
+    "${ROOT}/uninstall-control-room-agent.sh"
+    ;;
+  app-why|ui-why|control-room-why)
+    echo "== launchctl =="
+    launchctl print "gui/$(id -u)/com.blackmamba.control-room" 2>&1 | sed -n '1,180p' || true
+    echo
+    echo "== lifecycle =="
+    tail -n 80 "${HOME}/Library/Application Support/BlackMambaInput/logs/control-room.lifecycle.log" 2>/dev/null || true
+    echo
+    echo "== stderr =="
+    tail -n 80 "${HOME}/Library/Application Support/BlackMambaInput/logs/control-room.err.log" 2>/dev/null || true
+    echo
+    echo "== endpoint =="
+    curl -fsS "http://127.0.0.1:${APP_PORT}/api/status" 2>&1 | head -c 1200 || true
+    echo
     ;;
   setup)
     echo "== Configurando BlackMamba Runtime =="

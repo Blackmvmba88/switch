@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BlackMamba Control Room</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>BlackMamba Control Room</h1>
+      <p>Runtime local para xCloud, Fortnite y control Xbox virtual.</p>
+    </div>
+    <div class="status-pill" id="overall">Cargando</div>
+  </header>
+
+  <main class="layout">
+    <section class="panel primary-actions">
+      <div class="panel-title">
+        <h2>Jugar</h2>
+        <span id="last-refresh">--</span>
+      </div>
+      <div class="action-grid">
+        <button data-command="wake" class="action primary">Wake xCloud</button>
+        <button data-command="verify" class="action">Verify</button>
+        <button data-command="buttons" class="action">Botones Live</button>
+        <button data-command="reinject" class="action">Reinject</button>
+      </div>
+      <div class="mode-row">
+        <button data-command="fortnite-map" class="action compact">Fortnite Map</button>
+        <button data-command="switch-map" class="action compact">Switch Map</button>
+        <button data-command="game-on" class="action compact warn">Game On</button>
+        <button data-command="game-off" class="action compact">Game Off</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">
+        <h2>Salud</h2>
+        <button id="refresh" class="ghost">Refresh</button>
+      </div>
+      <div class="health-grid">
+        <div class="metric"><span>Live polling</span><strong id="livePolling">--</strong></div>
+        <div class="metric"><span>xCloud bridge</span><strong id="bridgeState">--</strong></div>
+        <div class="metric"><span>Chrome CDP</span><strong id="cdpState">--</strong></div>
+        <div class="metric"><span>Virtual pad</span><strong id="padState">--</strong></div>
+      </div>
+      <dl class="details">
+        <div><dt>Frames</dt><dd id="frames">--</dd></div>
+        <div><dt>Clientes</dt><dd id="clients">--</dd></div>
+        <div><dt>Stale</dt><dd id="stale">--</dd></div>
+        <div><dt>Tab</dt><dd id="tab">--</dd></div>
+      </dl>
+    </section>
+
+    <section class="panel command-panel">
+      <div class="panel-title">
+        <h2>Doctor</h2>
+      </div>
+      <div class="action-grid small">
+        <button data-command="doctor" class="action">Doctor</button>
+        <button data-command="status" class="action">Status</button>
+        <button data-command="ram" class="action">RAM</button>
+        <button data-command="recycle" class="action warn">Recycle</button>
+        <button data-command="clean" class="action">Clean</button>
+        <button data-command="test" class="action">Test</button>
+      </div>
+    </section>
+
+    <section class="panel output-panel">
+      <div class="panel-title">
+        <h2>Salida</h2>
+        <button id="logs" class="ghost">Logs</button>
+      </div>
+      <pre id="output">Listo.</pre>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
