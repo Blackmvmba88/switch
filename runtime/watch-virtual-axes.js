@@ -34,7 +34,8 @@ async function cdp(wsUrl, fn) {
 
 function changed(a, b) {
   if (!a || !b) return true;
-  return ["lx", "ly", "rx", "ry", "lt", "rt"].some((key) => Math.abs(Number(a[key]) - Number(b[key])) > 0.02);
+  return ["lx", "ly", "rx", "ry", "lb", "rb", "lt", "rt", "back", "start", "l3", "r3", "guide"]
+    .some((key) => Math.abs(Number(a[key]) - Number(b[key])) > 0.02);
 }
 
 async function main() {
@@ -42,7 +43,7 @@ async function main() {
   const target = targets.find((item) => item.type === "page" && /xbox\.com/.test(item.url || ""));
   if (!target?.webSocketDebuggerUrl) throw new Error("No Xbox CDP target available");
 
-  console.log(`Watching virtual axes/triggers for ${Math.round(durationMs / 1000)}s. Move sticks or pull LT/RT now.`);
+  console.log(`Watching virtual axes/buttons for ${Math.round(durationMs / 1000)}s. Move sticks or press LB/RB/LT/RT/Back/Start/L3/R3.`);
   await cdp(target.webSocketDebuggerUrl, async (send) => {
     await send("Runtime.enable");
     let previous = null;
@@ -60,8 +61,15 @@ async function main() {
             ly: Number(g.axes[1] || 0).toFixed(3),
             rx: Number(g.axes[2] || 0).toFixed(3),
             ry: Number(g.axes[3] || 0).toFixed(3),
+            lb: Number(g.buttons[4]?.value || 0).toFixed(3),
+            rb: Number(g.buttons[5]?.value || 0).toFixed(3),
             lt: Number(g.buttons[6]?.value || 0).toFixed(3),
-            rt: Number(g.buttons[7]?.value || 0).toFixed(3)
+            rt: Number(g.buttons[7]?.value || 0).toFixed(3),
+            back: Number(g.buttons[8]?.value || 0).toFixed(3),
+            start: Number(g.buttons[9]?.value || 0).toFixed(3),
+            l3: Number(g.buttons[10]?.value || 0).toFixed(3),
+            r3: Number(g.buttons[11]?.value || 0).toFixed(3),
+            guide: Number(g.buttons[16]?.value || 0).toFixed(3)
           };
         })()`,
         returnByValue: true

@@ -163,9 +163,15 @@ async function main() {
               ry: Number(g.axes[3] || 0).toFixed(3),
               b0: g.buttons[0]?.value || 0,
               b1: g.buttons[1]?.value || 0,
+              lb: g.buttons[4]?.value || 0,
+              rb: g.buttons[5]?.value || 0,
               lt: g.buttons[6]?.value || 0,
               rt: g.buttons[7]?.value || 0,
+              back: g.buttons[8]?.value || 0,
               start: g.buttons[9]?.value || 0,
+              l3: g.buttons[10]?.value || 0,
+              r3: g.buttons[11]?.value || 0,
+              guide: g.buttons[16]?.value || 0,
               dpadUp: g.buttons[12]?.value || 0
             }))
           });

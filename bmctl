@@ -19,6 +19,7 @@ Uso:
   ./bmctl reinject          Reinyecta el Xbox bridge; si no hay target, abre xCloud
   ./bmctl verify            Verifica Xbox virtual; si no hay target, abre xCloud
   ./bmctl axes              Muestra LX/LY/RX/RY en vivo desde xCloud
+  ./bmctl buttons           Muestra palancas + LB/RB/LT/RT/Back/Start en vivo
   ./bmctl status            Estado live-monitor + HID source + xCloud tab
   ./bmctl doctor            Diagnóstico HID/xCloud compatibility
   ./bmctl doctor-advanced   Diagnóstico de estabilidad daemon/CDP/bridge/logs
@@ -106,7 +107,7 @@ case "${1:-help}" in
       VERIFY_ONLY=1 node "${ROOT}/runtime/inject-bridge-cdp.js" "${DEBUG_PORT}"
     fi
     ;;
-  axes|palancas)
+  axes|palancas|buttons|botones)
     "${ROOT}/start-hid-live-source.sh"
     node "${ROOT}/runtime/watch-virtual-axes.js" "${DEBUG_PORT}" "${DURATION_MS:-15000}"
     ;;
