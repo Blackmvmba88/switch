@@ -284,7 +284,8 @@ function main() {
             type: "semantic-frame", 
             frame: publicFrame, 
             events,
-            device: message.device 
+            device: message.device,
+            rawSample: message.sample
           });
         } else if (message.type === "heartbeat") {
           writeStatus({ heartbeat: message.at || new Date().toISOString() });

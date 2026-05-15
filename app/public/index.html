@@ -68,6 +68,30 @@
       </div>
     </section>
 
+    <section class="panel mapper-panel">
+      <div class="panel-title">
+        <h2>Mapeo independiente</h2>
+        <span id="mapper-state">idle</span>
+      </div>
+      <div class="mapper-layout">
+        <div class="target-list" id="target-list"></div>
+        <div class="mapper-workbench">
+          <div class="selected-target">
+            <span>Objetivo</span>
+            <strong id="selected-target">DPad_Up</strong>
+          </div>
+          <div class="mapping-readout">
+            <div><span>Actual</span><strong id="current-binding">--</strong></div>
+            <div><span>Detectado</span><strong id="detected-binding">--</strong></div>
+          </div>
+          <div class="mapper-actions">
+            <button id="listen-binding" class="action primary">Escuchar</button>
+            <button id="save-binding" class="action" disabled>Guardar</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="panel output-panel">
       <div class="panel-title">
         <h2>Salida</h2>

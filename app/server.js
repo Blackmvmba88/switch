@@ -13,6 +13,15 @@ const LIVE_STATUS = path.join(APP_ROOT, "reports/live-status.json");
 const XCLOUD_STATUS = path.join(APP_ROOT, "reports/xcloud-bridge-status.json");
 const LIVE_EVENTS = path.join(APP_ROOT, "logs/live-events.jsonl");
 const XCLOUD_ERR = path.join(APP_ROOT, "logs/xcloud-bridge-agent.err.log");
+const REPO_PROFILE = path.join(ROOT, "profiles/rock-candy-wired-controller-for-nintendo-switch-vendor-0e6f-product-0187.normalized.json");
+const APP_PROFILE = path.join(APP_ROOT, "profiles/rock-candy.normalized.json");
+const ALLOWED_SEMANTICS = new Set([
+  "A", "B", "X", "Y",
+  "LB", "RB", "LT", "RT",
+  "Back", "Start", "L3", "R3", "Guide",
+  "DPad_Up", "DPad_Down", "DPad_Left", "DPad_Right",
+  "LX", "LY", "RX", "RY"
+]);
 
 function lifecycle(message) {
   const line = `[${new Date().toISOString()}] ${message}\n`;
@@ -57,6 +66,11 @@ function readJson(file) {
   } catch (error) {
     return null;
   }
+}
+
+function writeJson(file, value) {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
 }
 
 function tail(file, lines = 80) {
@@ -118,6 +132,32 @@ function runBmctl(name) {
   });
 }
 
+function runCommand(command, args, timeout = 6000) {
+  return new Promise((resolve) => {
+    const child = spawn(command, args, {
+      cwd: ROOT,
+      env: process.env,
+      stdio: ["ignore", "pipe", "pipe"]
+    });
+    let stdout = "";
+    let stderr = "";
+    const timer = setTimeout(() => {
+      child.kill("SIGTERM");
+      stderr += `\nTimeout after ${timeout}ms`;
+    }, timeout).unref();
+    child.stdout.on("data", (chunk) => { stdout += chunk.toString(); });
+    child.stderr.on("data", (chunk) => { stderr += chunk.toString(); });
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      resolve({ ok: code === 0, code, stdout: stdout.trim(), stderr: stderr.trim() });
+    });
+  });
+}
+
+async function restartLiveMonitor() {
+  return runCommand("launchctl", ["kickstart", "-k", `gui/${process.getuid()}/com.blackmamba.live-monitor`], 6000);
+}
+
 async function fetchCdpTabs() {
   try {
     const response = await fetch("http://127.0.0.1:9224/json");
@@ -159,6 +199,79 @@ async function apiStatus() {
   };
 }
 
+function readProfile() {
+  return readJson(APP_PROFILE) || readJson(REPO_PROFILE);
+}
+
+function normalizeBinding(input) {
+  if (!input || typeof input !== "object") return null;
+  const source = String(input.source || "");
+  const index = Number(input.index);
+  const kind = input.kind === "axis" ? "axis" : input.kind === "button" ? "button" : "";
+  if (!kind || !Number.isInteger(index) || index < 0 || index > 32) return null;
+  if (kind === "button" && source !== `B${index}`) return null;
+  if (kind === "axis" && source !== `A${index}`) return null;
+  const binding = { source, kind, index };
+  if (kind === "axis") {
+    const from = Number(input.from);
+    const to = Number(input.to);
+    if (!Number.isFinite(to)) return null;
+    if (Number.isFinite(from)) binding.from = Number(from.toFixed(3));
+    binding.to = Number(to.toFixed(3));
+  }
+  return binding;
+}
+
+async function saveBinding(payload) {
+  const semantic = String(payload?.semantic || "");
+  const binding = normalizeBinding(payload?.binding);
+  if (!ALLOWED_SEMANTICS.has(semantic)) {
+    return { ok: false, error: `semantic not allowed: ${semantic}` };
+  }
+  if (!binding) {
+    return { ok: false, error: "invalid binding" };
+  }
+
+  const profile = readProfile();
+  if (!profile) return { ok: false, error: "profile missing" };
+  profile.semantic = profile.semantic || {};
+  profile.semantic[semantic] = {
+    ...profile.semantic[semantic],
+    ...binding,
+    confidence: 0.99,
+    updatedAt: new Date().toISOString(),
+    learnedBy: "control-room"
+  };
+  if (semantic.startsWith("DPad_")) profile.dpadMode = binding.kind === "axis" ? "hat-axis" : "buttons";
+  if (semantic === "LT" || semantic === "RT") profile.triggerMode = binding.kind === "axis" ? "axes" : "buttons";
+
+  writeJson(REPO_PROFILE, profile);
+  writeJson(APP_PROFILE, profile);
+  const restart = await restartLiveMonitor();
+  return { ok: true, semantic, binding: profile.semantic[semantic], restart };
+}
+
+async function readBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = "";
+    req.on("data", (chunk) => {
+      body += chunk.toString();
+      if (body.length > 100000) {
+        reject(new Error("body too large"));
+        req.destroy();
+      }
+    });
+    req.on("end", () => {
+      try {
+        resolve(body ? JSON.parse(body) : {});
+      } catch (error) {
+        reject(error);
+      }
+    });
+    req.on("error", reject);
+  });
+}
+
 function serveStatic(req, res) {
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
   const pathname = url.pathname === "/" ? "/index.html" : url.pathname;
@@ -194,6 +307,14 @@ const server = http.createServer(async (req, res) => {
         liveEvents: tail(LIVE_EVENTS, 80),
         xcloudErrors: tail(XCLOUD_ERR, 80)
       });
+      return;
+    }
+    if (req.method === "GET" && url.pathname === "/api/profile") {
+      sendJson(res, 200, { ok: true, profile: readProfile() });
+      return;
+    }
+    if (req.method === "POST" && url.pathname === "/api/profile/binding") {
+      sendJson(res, 200, await saveBinding(await readBody(req)));
       return;
     }
     if (req.method === "POST" && url.pathname.startsWith("/api/run/")) {

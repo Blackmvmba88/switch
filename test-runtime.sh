@@ -18,8 +18,10 @@ node --check "${ROOT}/runtime/live-monitor-smoke.js"
 node --check "${ROOT}/runtime/replay-trace.js"
 node --check "${ROOT}/runtime/semantic-diff.js"
 node --check "${ROOT}/adapters/debug/print-trace.js"
+node --check "${ROOT}/app/server.js"
+node --check "${ROOT}/app/public/app.js"
 bash -n "${ROOT}/start-live-monitor.sh" "${ROOT}/stop-live-monitor.sh" "${ROOT}/controller-watchdog.sh" "${ROOT}/install-controller-watch-agent.sh" "${ROOT}/uninstall-controller-watch-agent.sh" "${ROOT}/install-live-monitor-agent.sh" "${ROOT}/uninstall-live-monitor-agent.sh" "${ROOT}/hid-raw-monitor.sh" "${ROOT}/press-a-live-test.sh"
-swiftc "${ROOT}/runtime/hid-raw-monitor.swift" -o "${TMP_DIR}/hid-raw-monitor"
+CLANG_MODULE_CACHE_PATH="${TMP_DIR}/clang-module-cache" swiftc "${ROOT}/runtime/hid-raw-monitor.swift" -o "${TMP_DIR}/hid-raw-monitor"
 
 echo "== JSON checks =="
 node -e 'const fs=require("fs"); for (const f of process.argv.slice(1)) JSON.parse(fs.readFileSync(f,"utf8"));' \

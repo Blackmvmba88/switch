@@ -190,6 +190,70 @@ dd {
   grid-column: 1 / -1;
 }
 
+.mapper-panel {
+  grid-column: 1 / -1;
+}
+
+.mapper-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 340px) minmax(0, 1fr);
+  gap: 14px;
+}
+
+.target-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.target-chip {
+  min-height: 38px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.target-chip.active {
+  border-color: var(--accent);
+  background: #0f2a37;
+  color: #c9f0ff;
+}
+
+.mapper-workbench {
+  display: grid;
+  gap: 12px;
+}
+
+.selected-target, .mapping-readout div {
+  padding: 12px;
+  border: 1px solid var(--line);
+  background: #0f1318;
+  border-radius: 8px;
+}
+
+.selected-target span, .mapping-readout span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.selected-target strong, .mapping-readout strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 18px;
+}
+
+.mapping-readout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.mapper-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
 pre {
   min-height: 260px;
   max-height: 460px;
@@ -208,4 +272,5 @@ pre {
   .topbar, .layout { padding: 14px; }
   .layout { grid-template-columns: 1fr; }
   .mode-row, .action-grid.small { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mapper-layout { grid-template-columns: 1fr; }
 }
