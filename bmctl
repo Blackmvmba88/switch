@@ -219,7 +219,9 @@ case "${1:-help}" in
     ;;
   game-on|gaming-on)
     echo "== modo juego ON =="
-    AUTO_OPEN_XCLOUD=1 "${ROOT}/install-xcloud-bridge-agent.sh" >/dev/null
+    if ! AUTO_OPEN_XCLOUD=1 "${ROOT}/install-xcloud-bridge-agent.sh" >/dev/null; then
+      echo "Aviso: no pude activar el daemon xCloud; usando arranque directo."
+    fi
     "${ROOT}/play-xcloud-cdp-bridge.sh"
     echo "Modo juego activo: el daemon reabre/reinyecta si Chrome CDP cae."
     ;;
