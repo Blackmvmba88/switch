@@ -47,6 +47,7 @@ const COMMANDS = {
   "switch-map": { args: ["switch-map"], timeout: 15000 },
   "game-on": { args: ["game-on"], timeout: 45000 },
   "game-off": { args: ["game-off"], timeout: 30000 },
+  "close": { args: ["close"], timeout: 30000 },
   "clean": { args: ["clean"], timeout: 15000 },
   "test": { args: ["test"], timeout: 90000 }
 };

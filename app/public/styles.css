@@ -122,6 +122,12 @@ button:disabled { opacity: .55; cursor: wait; }
   color: #ffd28a;
 }
 
+.action.danger {
+  background: #321416;
+  border-color: #723238;
+  color: #ffb7bd;
+}
+
 .action.compact {
   min-height: 44px;
   font-size: 13px;

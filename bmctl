@@ -31,6 +31,8 @@ Uso:
   ./bmctl recycle           Reinicia daemons BlackMamba y mata HID legacy del repo
   ./bmctl game-on           Activa modo juego: auto-reabre xCloud si CDP cae
   ./bmctl game-off          Desactiva modo juego: daemon no intrusivo
+  ./bmctl close             Cierra xCloud/CDP/HID/live-monitor y libera RAM
+  ./bmctl shutdown          Cierra todo, incluyendo Control Room
   ./bmctl hid               Arranca fuente nativa HID -> live-monitor
   ./bmctl install-hid-agent Instala LaunchAgent persistente para HID
   ./bmctl daemon            Instala daemon completo: live + HID + xCloud bridge
@@ -130,6 +132,7 @@ case "${1:-help}" in
     echo "BlackMamba Control Room: http://127.0.0.1:${APP_PORT}"
     ;;
   app-stop|ui-stop|control-room-stop)
+    "${ROOT}/close-runtime.sh" --include-app
     "${ROOT}/uninstall-control-room-agent.sh"
     ;;
   app-why|ui-why|control-room-why)
@@ -224,6 +227,12 @@ case "${1:-help}" in
     echo "== modo juego OFF =="
     AUTO_OPEN_XCLOUD=0 "${ROOT}/install-xcloud-bridge-agent.sh" >/dev/null
     echo "Modo no intrusivo activo: xCloud solo abre con ./bmctl wake."
+    ;;
+  close|close-game|stop-game|cerrar)
+    "${ROOT}/close-runtime.sh"
+    ;;
+  shutdown|quit|salir|kill-all)
+    "${ROOT}/close-runtime.sh" --include-app
     ;;
   hid)
     "${ROOT}/start-hid-live-source.sh"
