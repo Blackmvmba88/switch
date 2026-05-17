@@ -47,6 +47,16 @@ Si quieres cerrar todo:
 | Izquierda | Y | X |
 | Arriba | X | Y |
 
+La cruz/D-pad tambien queda cubierta. Este control la reporta como eje `A9`,
+y el bridge la convierte a botones Xbox:
+
+| Cruz | Fuente | Xbox |
+| --- | --- | --- |
+| Arriba | `A9=-1` | `buttons[12]` |
+| Abajo | `A9=0.143` | `buttons[13]` |
+| Izquierda | `A9=0.714` | `buttons[14]` |
+| Derecha | `A9=-0.429` | `buttons[15]` |
+
 Regresar etiquetas Nintendo/Switch:
 
 ```bash

@@ -109,6 +109,16 @@ and maps by where the button sits:
 | Left | Y | X |
 | Top | X | Y |
 
+The D-pad is also part of this profile. The Rock Candy reports it as one
+quantized hat axis, not four normal buttons:
+
+| D-pad direction | Raw source | Xbox button |
+| --- | --- | --- |
+| Up | `A9=-1` | `buttons[12]` |
+| Down | `A9=0.143` | `buttons[13]` |
+| Left | `A9=0.714` | `buttons[14]` |
+| Right | `A9=-0.429` | `buttons[15]` |
+
 If xCloud is already open:
 
 ```bash

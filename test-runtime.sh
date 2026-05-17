@@ -18,6 +18,7 @@ node --check "${ROOT}/runtime/live-monitor-smoke.js"
 node --check "${ROOT}/runtime/replay-trace.js"
 node --check "${ROOT}/runtime/semantic-diff.js"
 node --check "${ROOT}/runtime/network-game-mode.js"
+node --check "${ROOT}/runtime/inject-bridge-cdp.js"
 node --check "${ROOT}/runtime/apply-face-layout.js"
 node --check "${ROOT}/adapters/debug/print-trace.js"
 node --check "${ROOT}/app/server.js"
@@ -126,6 +127,36 @@ if (profile.layout !== "switch-rock-candy:xbox-physical") {
   process.exit(1);
 }
 console.log("Fortnite/Xbox face buttons are position-correct and idempotent");
+NODE
+
+echo "== D-pad hat-axis assertions =="
+node - "${PROFILE_FIXTURE}" <<'NODE'
+const fs = require("fs");
+const { frameFromSample } = require("./runtime/translate-sample.js");
+const profile = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+const expected = {
+  DPad_Up: -1,
+  DPad_Right: -0.429,
+  DPad_Down: 0.143,
+  DPad_Left: 0.714
+};
+const buttons = Array.from({ length: 17 }, () => ({ pressed: false, touched: false, value: 0 }));
+for (const [name, value] of Object.entries(expected)) {
+  const axes = [0, 0, 0, 0, 0, 0, 0, 0, 0, value];
+  const frame = frameFromSample({ t: 100, buttons, axes }, profile, null);
+  if (frame.buttons?.[name]?.pressed !== true) {
+    console.error(`${name} did not press from A9=${value}`);
+    process.exit(1);
+  }
+  const others = Object.keys(expected).filter((item) => item !== name);
+  for (const other of others) {
+    if (frame.buttons?.[other]?.pressed) {
+      console.error(`${name} leaked into ${other} at A9=${value}`);
+      process.exit(1);
+    }
+  }
+}
+console.log("DPad_Up/Right/Down/Left decode cleanly from hat axis A9");
 NODE
 
 echo "== Trace summary =="

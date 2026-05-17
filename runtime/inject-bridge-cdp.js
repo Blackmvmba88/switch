@@ -172,7 +172,10 @@ async function main() {
               l3: g.buttons[10]?.value || 0,
               r3: g.buttons[11]?.value || 0,
               guide: g.buttons[16]?.value || 0,
-              dpadUp: g.buttons[12]?.value || 0
+              dpadUp: g.buttons[12]?.value || 0,
+              dpadDown: g.buttons[13]?.value || 0,
+              dpadLeft: g.buttons[14]?.value || 0,
+              dpadRight: g.buttons[15]?.value || 0
             }))
           });
           for (let i = 0; i < 20; i += 1) {
