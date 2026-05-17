@@ -34,7 +34,13 @@ async function cdp(wsUrl, fn) {
 
 function changed(a, b) {
   if (!a || !b) return true;
-  return ["lx", "ly", "rx", "ry", "lb", "rb", "lt", "rt", "back", "start", "l3", "r3", "guide"]
+  return [
+    "lx", "ly", "rx", "ry",
+    "a", "b", "x", "y",
+    "lb", "rb", "lt", "rt",
+    "back", "start", "l3", "r3", "guide",
+    "dpadUp", "dpadDown", "dpadLeft", "dpadRight"
+  ]
     .some((key) => Math.abs(Number(a[key]) - Number(b[key])) > 0.02);
 }
 
@@ -43,7 +49,8 @@ async function main() {
   const target = targets.find((item) => item.type === "page" && /xbox\.com/.test(item.url || ""));
   if (!target?.webSocketDebuggerUrl) throw new Error("No Xbox CDP target available");
 
-  console.log(`Watching virtual axes/buttons for ${Math.round(durationMs / 1000)}s. Move sticks or press LB/RB/LT/RT/Back/Start/L3/R3.`);
+  console.log(`Watching virtual Xbox pad for ${Math.round(durationMs / 1000)}s.`);
+  console.log("Fortnite build check: press physical RIGHT face button (printed A) for Xbox B/build, then LT/RT/RB/LB and D-pad.");
   await cdp(target.webSocketDebuggerUrl, async (send) => {
     await send("Runtime.enable");
     let previous = null;
@@ -61,6 +68,10 @@ async function main() {
             ly: Number(g.axes[1] || 0).toFixed(3),
             rx: Number(g.axes[2] || 0).toFixed(3),
             ry: Number(g.axes[3] || 0).toFixed(3),
+            a: Number(g.buttons[0]?.value || 0).toFixed(3),
+            b: Number(g.buttons[1]?.value || 0).toFixed(3),
+            x: Number(g.buttons[2]?.value || 0).toFixed(3),
+            y: Number(g.buttons[3]?.value || 0).toFixed(3),
             lb: Number(g.buttons[4]?.value || 0).toFixed(3),
             rb: Number(g.buttons[5]?.value || 0).toFixed(3),
             lt: Number(g.buttons[6]?.value || 0).toFixed(3),
@@ -69,6 +80,10 @@ async function main() {
             start: Number(g.buttons[9]?.value || 0).toFixed(3),
             l3: Number(g.buttons[10]?.value || 0).toFixed(3),
             r3: Number(g.buttons[11]?.value || 0).toFixed(3),
+            dpadUp: Number(g.buttons[12]?.value || 0).toFixed(3),
+            dpadDown: Number(g.buttons[13]?.value || 0).toFixed(3),
+            dpadLeft: Number(g.buttons[14]?.value || 0).toFixed(3),
+            dpadRight: Number(g.buttons[15]?.value || 0).toFixed(3),
             guide: Number(g.buttons[16]?.value || 0).toFixed(3)
           };
         })()`,
