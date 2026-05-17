@@ -38,6 +38,15 @@ Si quieres cerrar todo:
 ./bmctl game-on
 ```
 
+`fortnite-map` deja ABXY como Xbox por posicion fisica, no por la letra impresa:
+
+| Fisico | Letra Switch | Xbox |
+| --- | --- | --- |
+| Abajo | B | A |
+| Derecha | A | B |
+| Izquierda | Y | X |
+| Arriba | X | Y |
+
 Regresar etiquetas Nintendo/Switch:
 
 ```bash

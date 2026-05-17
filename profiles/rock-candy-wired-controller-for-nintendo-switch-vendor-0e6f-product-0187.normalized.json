@@ -16,25 +16,37 @@
       "source": "B1",
       "kind": "button",
       "index": 1,
-      "confidence": 0.99
+      "confidence": 0.99,
+      "position": "bottom",
+      "printedLabel": "B",
+      "mappedBy": "xbox-physical"
     },
     "B": {
       "source": "B0",
       "kind": "button",
       "index": 0,
-      "confidence": 0.99
+      "confidence": 0.99,
+      "position": "right",
+      "printedLabel": "A",
+      "mappedBy": "xbox-physical"
     },
     "X": {
       "source": "B3",
       "kind": "button",
       "index": 3,
-      "confidence": 0.99
+      "confidence": 0.99,
+      "position": "left",
+      "printedLabel": "Y",
+      "mappedBy": "xbox-physical"
     },
     "Y": {
       "source": "B2",
       "kind": "button",
       "index": 2,
-      "confidence": 0.99
+      "confidence": 0.99,
+      "position": "top",
+      "printedLabel": "X",
+      "mappedBy": "xbox-physical"
     },
     "LB": {
       "source": "B4",
@@ -177,5 +189,5 @@
       "Neutral": 1.286
     }
   },
-  "updatedAt": "2026-05-13T11:01:05.531Z"
+  "updatedAt": "2026-05-17T16:31:14.366Z"
 }

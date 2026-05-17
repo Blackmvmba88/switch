@@ -18,6 +18,7 @@ node --check "${ROOT}/runtime/live-monitor-smoke.js"
 node --check "${ROOT}/runtime/replay-trace.js"
 node --check "${ROOT}/runtime/semantic-diff.js"
 node --check "${ROOT}/runtime/network-game-mode.js"
+node --check "${ROOT}/runtime/apply-face-layout.js"
 node --check "${ROOT}/adapters/debug/print-trace.js"
 node --check "${ROOT}/app/server.js"
 node --check "${ROOT}/app/public/app.js"
@@ -95,6 +96,36 @@ for (const [name, index] of Object.entries(controls)) {
   t += 100;
 }
 console.log("LB/RB/LT/RT/Back/Start/L3/R3/Guide translate from expected buttons");
+NODE
+
+echo "== Fortnite face layout assertions =="
+node - <<'NODE'
+const { applyLayout } = require("./runtime/apply-face-layout.js");
+const profile = applyLayout({ layout: "switch-rock-candy:xbox-physical:xbox-physical", semantic: {
+  A: { source: "B1" },
+  B: { source: "B2", learnedBy: "control-room" },
+  X: { source: "B3" },
+  Y: { source: "B2" }
+}}, "xbox-physical");
+const expected = {
+  A: { source: "B1", position: "bottom", printedLabel: "B" },
+  B: { source: "B0", position: "right", printedLabel: "A" },
+  X: { source: "B3", position: "left", printedLabel: "Y" },
+  Y: { source: "B2", position: "top", printedLabel: "X" }
+};
+for (const [name, binding] of Object.entries(expected)) {
+  for (const [key, value] of Object.entries(binding)) {
+    if (profile.semantic[name]?.[key] !== value) {
+      console.error(`${name}.${key} expected ${value}, got ${profile.semantic[name]?.[key]}`);
+      process.exit(1);
+    }
+  }
+}
+if (profile.layout !== "switch-rock-candy:xbox-physical") {
+  console.error(`Layout tag was not normalized: ${profile.layout}`);
+  process.exit(1);
+}
+console.log("Fortnite/Xbox face buttons are position-correct and idempotent");
 NODE
 
 echo "== Trace summary =="

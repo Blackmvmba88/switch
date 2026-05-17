@@ -99,6 +99,16 @@ For Fortnite, use Xbox physical button positions:
 ./bmctl game-on
 ```
 
+This intentionally ignores the letters printed on the Switch/Rock Candy shell
+and maps by where the button sits:
+
+| Physical button | Printed on Switch pad | Xbox meaning |
+| --- | --- | --- |
+| Bottom | B | A |
+| Right | A | B |
+| Left | Y | X |
+| Top | X | Y |
+
 If xCloud is already open:
 
 ```bash
