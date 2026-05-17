@@ -23,6 +23,7 @@ Uso:
   ./bmctl verify            Verifica Xbox virtual; si no hay target, abre xCloud
   ./bmctl axes              Muestra LX/LY/RX/RY en vivo desde xCloud
   ./bmctl buttons           Muestra palancas + LB/RB/LT/RT/Back/Start en vivo
+  ./bmctl press B 500       Pulso virtual Xbox al bridge live
   ./bmctl app               Abre BlackMamba Control Room
   ./bmctl app-stop          Detiene BlackMamba Control Room
   ./bmctl app-why           Diagnostica por que Control Room se apago
@@ -126,6 +127,9 @@ case "${1:-help}" in
   axes|palancas|buttons|botones)
     "${ROOT}/start-hid-live-source.sh"
     node "${ROOT}/runtime/watch-virtual-axes.js" "${DEBUG_PORT}" "${DURATION_MS:-15000}"
+    ;;
+  press|pulse)
+    node "${ROOT}/runtime/send-virtual-input.js" "${2:-}" "${3:-500}"
     ;;
   app|ui|control-room)
     mkdir -p "${ROOT}/logs"
