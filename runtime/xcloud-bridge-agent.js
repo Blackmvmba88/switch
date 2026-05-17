@@ -11,10 +11,16 @@ const intervalMs = Number(process.env.INTERVAL_MS || 5000);
 const autoOpenXcloud = process.env.AUTO_OPEN_XCLOUD === "1";
 const injectScript = path.join(appRoot, "runtime", "inject-bridge-cdp.js");
 const statusPath = process.env.STATUS_PATH || path.join(appRoot, "reports", "xcloud-bridge-status.json");
+const sessionPath = process.env.SESSION_PATH || path.join(appRoot, "reports", "play-sessions.json");
+const closeScript = process.env.CLOSE_SCRIPT || path.join(appRoot, "close-runtime.sh");
+const minPlayMs = Number(process.env.AUTO_SHUTDOWN_MIN_PLAY_MS || 30 * 60 * 1000);
+const awayGraceMs = Number(process.env.AUTO_SHUTDOWN_AWAY_GRACE_MS || 90 * 1000);
 
 let lastLaunchAt = 0;
 let lastInjectAt = 0;
 let injecting = false;
+let closing = false;
+let session = null;
 
 function writeStatus(status) {
   fs.mkdirSync(path.dirname(statusPath), { recursive: true });
@@ -43,6 +49,129 @@ function run(command, args, options = {}) {
       });
     });
   });
+}
+
+function readJson(file, fallback) {
+  try {
+    return JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch (_) {
+    return fallback;
+  }
+}
+
+function writeJson(file, value) {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, JSON.stringify(value, null, 2) + "\n");
+}
+
+function durationText(ms) {
+  const minutes = Math.round(ms / 60000);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest ? `${hours}h ${rest}m` : `${hours}h`;
+}
+
+async function frontmostApp() {
+  const script = 'tell application "System Events" to get name of first application process whose frontmost is true';
+  const result = await run("/usr/bin/osascript", ["-e", script], { timeout: 3000 });
+  return result.ok ? result.stdout.trim() : "";
+}
+
+function loadSessionMemory() {
+  const memory = readJson(sessionPath, { sessions: [] });
+  if (!Array.isArray(memory.sessions)) memory.sessions = [];
+  return memory;
+}
+
+function appendSession(record) {
+  const memory = loadSessionMemory();
+  memory.sessions.push(record);
+  memory.sessions = memory.sessions.slice(-50);
+  const durations = memory.sessions
+    .map((item) => Number(item.durationMs || 0))
+    .filter((value) => value > 0);
+  const averageMs = durations.length
+    ? Math.round(durations.reduce((sum, value) => sum + value, 0) / durations.length)
+    : 0;
+  memory.updatedAt = new Date().toISOString();
+  memory.summary = {
+    count: durations.length,
+    averageMs,
+    average: averageMs ? durationText(averageMs) : "0m",
+    lastDurationMs: record.durationMs,
+    lastDuration: durationText(record.durationMs)
+  };
+  writeJson(sessionPath, memory);
+}
+
+function startOrTouchSession(reason) {
+  const now = Date.now();
+  if (!session) {
+    session = {
+      startedAtMs: now,
+      startedAt: new Date(now).toISOString(),
+      lastSeenAtMs: now,
+      lastSeenAt: new Date(now).toISOString(),
+      reason
+    };
+  } else {
+    session.lastSeenAtMs = now;
+    session.lastSeenAt = new Date(now).toISOString();
+  }
+}
+
+function sessionSnapshot(extra = {}) {
+  if (!session) return { activeSession: false, ...extra };
+  const now = Date.now();
+  return {
+    activeSession: true,
+    sessionStartedAt: session.startedAt,
+    sessionLastSeenAt: session.lastSeenAt,
+    sessionDurationMs: now - session.startedAtMs,
+    sessionDuration: durationText(now - session.startedAtMs),
+    sessionMissingMs: now - session.lastSeenAtMs,
+    minPlayMs,
+    awayGraceMs,
+    ...extra
+  };
+}
+
+async function maybeAutoShutdown(reason) {
+  if (!session || closing) return false;
+  const now = Date.now();
+  const durationMs = now - session.startedAtMs;
+  const missingMs = now - session.lastSeenAtMs;
+  if (durationMs < minPlayMs || missingMs < awayGraceMs) return false;
+
+  const app = await frontmostApp();
+  const awayFromChrome = app && !/chrome/i.test(app);
+  if (!awayFromChrome) return false;
+
+  closing = true;
+  const record = {
+    startedAt: session.startedAt,
+    endedAt: new Date(now).toISOString(),
+    durationMs,
+    duration: durationText(durationMs),
+    missingMs,
+    closeReason: reason,
+    frontmostApp: app
+  };
+  appendSession(record);
+  writeStatus({
+    state: "auto_shutdown",
+    reason,
+    frontmostApp: app,
+    session: record,
+    memory: loadSessionMemory().summary
+  });
+  if (fs.existsSync(closeScript)) {
+    await run("/bin/bash", [closeScript], { timeout: 20000 });
+  }
+  session = null;
+  closing = false;
+  return true;
 }
 
 async function fetchJson(url) {
@@ -97,24 +226,28 @@ async function tick() {
   try {
     await fetchJson(`http://127.0.0.1:${debugPort}/json/version`);
   } catch (error) {
+    if (await maybeAutoShutdown("cdp_unavailable_after_play")) return;
     if (autoOpenXcloud) {
       await launchChrome();
-      writeStatus({ state: "starting_chrome", cdp: "unavailable", error: error.message });
+      writeStatus({ state: "starting_chrome", cdp: "unavailable", error: error.message, ...sessionSnapshot() });
     } else {
-      writeStatus({ state: "idle_no_cdp", cdp: "unavailable", error: error.message });
+      writeStatus({ state: "idle_no_cdp", cdp: "unavailable", error: error.message, ...sessionSnapshot() });
     }
     return;
   }
 
   const targets = await getTargets();
   const playTarget = targets.find(isPlayTarget);
+  if (playTarget) startOrTouchSession("xcloud_play_target_seen");
   if (!playTarget && !autoOpenXcloud) {
-    writeStatus({ state: "idle_no_xcloud_tab", cdp: "available", playTarget: false, targets: targets.length });
+    if (await maybeAutoShutdown("xcloud_tab_closed_after_play")) return;
+    writeStatus({ state: "idle_no_xcloud_tab", cdp: "available", playTarget: false, targets: targets.length, ...sessionSnapshot() });
     return;
   }
+  if (!playTarget && await maybeAutoShutdown("xcloud_tab_closed_after_play")) return;
   const now = Date.now();
   if (now - lastInjectAt < intervalMs) {
-    writeStatus({ state: "waiting", cdp: "available", playTarget: Boolean(playTarget), targets: targets.length });
+    writeStatus({ state: "waiting", cdp: "available", playTarget: Boolean(playTarget), targets: targets.length, ...sessionSnapshot() });
     return;
   }
 
@@ -126,7 +259,8 @@ async function tick() {
     playTarget: Boolean(playTarget),
     targets: targets.length,
     stdout: result.stdout.trim().slice(-1200),
-    stderr: result.stderr.trim().slice(-1200)
+    stderr: result.stderr.trim().slice(-1200),
+    ...sessionSnapshot()
   });
 }
 

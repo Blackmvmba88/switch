@@ -32,8 +32,9 @@ kick_agent() {
 mkdir -p "${APP_ROOT}/runtime" "${APP_ROOT}/xbox-gamepad-bridge" "${APP_ROOT}/logs" "${APP_ROOT}/reports" "${AGENT_DIR}"
 cp "${ROOT}/runtime/xcloud-bridge-agent.js" "${APP_ROOT}/runtime/xcloud-bridge-agent.js"
 cp "${ROOT}/runtime/inject-bridge-cdp.js" "${APP_ROOT}/runtime/inject-bridge-cdp.js"
+cp "${ROOT}/close-runtime.sh" "${APP_ROOT}/close-runtime.sh"
 cp "${ROOT}/xbox-gamepad-bridge/bridge.js" "${APP_ROOT}/xbox-gamepad-bridge/bridge.js"
-chmod +x "${APP_ROOT}/runtime/xcloud-bridge-agent.js" "${APP_ROOT}/runtime/inject-bridge-cdp.js"
+chmod +x "${APP_ROOT}/runtime/xcloud-bridge-agent.js" "${APP_ROOT}/runtime/inject-bridge-cdp.js" "${APP_ROOT}/close-runtime.sh"
 
 cat > "${PLIST}" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -64,6 +65,14 @@ cat > "${PLIST}" <<PLIST
     <string>${AUTO_OPEN_XCLOUD}</string>
     <key>STATUS_PATH</key>
     <string>${APP_ROOT}/reports/xcloud-bridge-status.json</string>
+    <key>SESSION_PATH</key>
+    <string>${APP_ROOT}/reports/play-sessions.json</string>
+    <key>CLOSE_SCRIPT</key>
+    <string>${APP_ROOT}/close-runtime.sh</string>
+    <key>AUTO_SHUTDOWN_MIN_PLAY_MS</key>
+    <string>1800000</string>
+    <key>AUTO_SHUTDOWN_AWAY_GRACE_MS</key>
+    <string>90000</string>
   </dict>
   <key>RunAtLoad</key>
   <true/>
@@ -80,11 +89,20 @@ cat > "${PLIST}" <<PLIST
 PLIST
 
 launchctl bootout "gui/$(id -u)" "${PLIST}" >/dev/null 2>&1 || true
-launchctl bootstrap "gui/$(id -u)" "${PLIST}"
-kick_agent
+BOOTSTRAP_OK=1
+if ! launchctl bootstrap "gui/$(id -u)" "${PLIST}"; then
+  BOOTSTRAP_OK=0
+  echo "Aviso: LaunchAgent ${LABEL} no pudo cargarse; archivos instalados, modo directo disponible." >&2
+fi
+if [[ "${BOOTSTRAP_OK}" == "1" ]]; then
+  kick_agent
+fi
 
 echo "Installed xCloud Bridge LaunchAgent: ${PLIST}"
 echo "Status: ${APP_ROOT}/reports/xcloud-bridge-status.json"
 echo "Logs:"
 echo "  ${APP_ROOT}/logs/xcloud-bridge-agent.out.log"
 echo "  ${APP_ROOT}/logs/xcloud-bridge-agent.err.log"
+if [[ "${BOOTSTRAP_OK}" == "0" ]]; then
+  echo "Fallback: usa ./bmctl play o ./bmctl game-on para arranque directo."
+fi

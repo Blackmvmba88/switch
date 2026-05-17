@@ -44,6 +44,7 @@ Regresar etiquetas Nintendo/Switch:
 
 ```bash
 ./bmctl status
+./bmctl sessions
 ./bmctl doctor-advanced
 ./bmctl buttons
 ./bmctl ram
@@ -51,6 +52,9 @@ Regresar etiquetas Nintendo/Switch:
 ```
 
 `buttons` muestra palancas, gatillos, Back/Select, Start, L3, R3 y Guide.
+
+`sessions` muestra cuanto duraron tus sesiones cerradas y el promedio que el
+runtime va aprendiendo.
 
 ## Estabilidad
 

@@ -17,6 +17,7 @@
 - `./bmctl repo-doctor` explica codigo vs runtime local.
 - `./bmctl repo-clean` limpia caches repo-locales seguras.
 - Documentacion publica con limites reales: bridge browser, no driver XInput.
+- Auto-shutdown de sesion: aprende duracion y apaga solo despues de salir de xCloud y estar en otra app.
 
 ## Milestone 2 - Perfil Completo Rock Candy
 

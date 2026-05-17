@@ -63,6 +63,11 @@ Close the game runtime when done:
 ./bmctl close
 ```
 
+When game mode is installed, the xCloud agent also learns session length. It is
+conservative: it only auto-closes after a real play session, after the xCloud
+window/tab disappears, and after another app is frontmost for a grace period.
+The default minimum session before auto-shutdown is 30 minutes.
+
 Close everything, including Control Room:
 
 ```bash
@@ -170,6 +175,7 @@ profiles, fixtures, or the active xCloud CDP profile.
 ./bmctl verify       # prove xCloud sees the virtual Xbox pad
 ./bmctl buttons      # live controls: sticks, triggers, Back, Start, L3, R3
 ./bmctl status       # runtime status, HID, monitor, CDP tabs
+./bmctl sessions     # learned play-session history and average duration
 ./bmctl app          # open Control Room
 ./bmctl close        # close game runtime, keep Control Room
 ./bmctl shutdown     # close runtime and Control Room
@@ -244,3 +250,5 @@ app/server.js + app/public/
 - The reliable local path is HID/native source + live monitor + CDP bridge.
 - Do not delete `/tmp/blackmamba-xcloud-cdp-profile` during a game session.
 - Use `./bmctl close` before heavy work if you want RAM and browser state clean.
+- Auto-shutdown waits for evidence that you left the game; it does not close
+  just because a timer expired.

@@ -6,6 +6,7 @@ DEBUG_PORT="${DEBUG_PORT:-9224}"
 APP_PORT="${BM_APP_PORT:-8147}"
 APP_STATUS="${HOME}/Library/Application Support/BlackMambaInput/reports/live-status.json"
 XCLOUD_STATUS="${HOME}/Library/Application Support/BlackMambaInput/reports/xcloud-bridge-status.json"
+SESSION_STATUS="${HOME}/Library/Application Support/BlackMambaInput/reports/play-sessions.json"
 APP_HID_PID_FILE="${HOME}/Library/Application Support/BlackMambaInput/logs/hid-live-source.pid"
 HID_BIN="${ROOT}/.tmp-runtime-test/hid-live-source"
 HID_PID_FILE="${ROOT}/logs/hid-live-source.pid"
@@ -25,6 +26,7 @@ Uso:
   ./bmctl app-stop          Detiene BlackMamba Control Room
   ./bmctl app-why           Diagnostica por que Control Room se apago
   ./bmctl status            Estado live-monitor + HID source + xCloud tab
+  ./bmctl sessions          Historial y promedio de sesiones de juego
   ./bmctl doctor            Diagnóstico HID/xCloud compatibility
   ./bmctl doctor-advanced   Diagnóstico de estabilidad daemon/CDP/bridge/logs
   ./bmctl ram               Muestra presión de memoria y procesos BlackMamba
@@ -192,9 +194,21 @@ case "${1:-help}" in
       echo "xcloud-bridge-agent stopped (corre ./bmctl daemon)"
     fi
     if [[ -f "${XCLOUD_STATUS}" ]]; then sed -n '1,80p' "${XCLOUD_STATUS}"; fi
+    if [[ -f "${SESSION_STATUS}" ]]; then
+      echo
+      echo "== play sessions =="
+      node -e "const fs=require('fs'); const data=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); console.log(JSON.stringify(data.summary||{}, null, 2));" "${SESSION_STATUS}" 2>/dev/null || true
+    fi
     echo
     echo "== chrome tabs =="
     chrome_tabs
+    ;;
+  sessions|session-history|play-sessions)
+    if [[ -f "${SESSION_STATUS}" ]]; then
+      sed -n '1,220p' "${SESSION_STATUS}"
+    else
+      echo "Sin historial todavia. Se crea cuando cierras una sesion larga y el agente apaga el runtime."
+    fi
     ;;
   doctor)
     "${ROOT}/controller-doctor.sh" doctor
