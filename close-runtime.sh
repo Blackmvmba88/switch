@@ -46,9 +46,12 @@ kill_pid_file "${ROOT}/logs/hid-live-source.pid"
 kill_pid_file "${APP_ROOT}/logs/hid-live-source.pid"
 
 kill_matching "xcloud-bridge-agent.js"
+kill_matching "network-game-mode.js"
 kill_matching "live-monitor.js --port 8137|runtime/live-monitor.js"
 kill_matching "hid-live-source-agent.sh|[.]tmp-runtime-test/hid-live-source|BlackMambaInput/[.]tmp-runtime-test/hid-live-source"
 kill_matching "remote-debugging-port=${DEBUG_PORT}.*blackmamba-xcloud-cdp-profile|blackmamba-xcloud-cdp-profile.*remote-debugging-port=${DEBUG_PORT}"
+kill_pid_file "${APP_ROOT}/logs/network-game-mode.pid"
+kill_pid_file "${APP_ROOT}/logs/network-caffeinate.pid"
 
 if [[ "${INCLUDE_APP}" == "--include-app" ]]; then
   stop_agent "com.blackmamba.control-room"

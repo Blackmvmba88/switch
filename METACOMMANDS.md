@@ -44,6 +44,7 @@ Regresar etiquetas Nintendo/Switch:
 
 ```bash
 ./bmctl status
+./bmctl net-status
 ./bmctl sessions
 ./bmctl doctor-advanced
 ./bmctl buttons
@@ -55,6 +56,18 @@ Regresar etiquetas Nintendo/Switch:
 
 `sessions` muestra cuanto duraron tus sesiones cerradas y el promedio que el
 runtime va aprendiendo.
+
+## Red Para Cloud Gaming
+
+```bash
+./bmctl net-on
+./bmctl net-status
+./bmctl net-off
+```
+
+`game-on` activa `net-on` automaticamente. El modo red mantiene la Mac despierta,
+refresca DNS local una vez y monitorea latencia/jitter/perdida contra gateway,
+internet y xCloud.
 
 ## Estabilidad
 

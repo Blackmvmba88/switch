@@ -51,6 +51,10 @@ Run xCloud in game mode:
 ./bmctl game-on
 ```
 
+Game mode also starts the network game monitor. It keeps the Mac awake with
+`caffeinate`, flushes the local DNS cache once, and tracks gateway/internet/xCloud
+latency, jitter, and packet loss. It does not make destructive network changes.
+
 Verify the virtual Xbox pad:
 
 ```bash
@@ -175,6 +179,7 @@ profiles, fixtures, or the active xCloud CDP profile.
 ./bmctl verify       # prove xCloud sees the virtual Xbox pad
 ./bmctl buttons      # live controls: sticks, triggers, Back, Start, L3, R3
 ./bmctl status       # runtime status, HID, monitor, CDP tabs
+./bmctl net-status   # gaming network latency, jitter, packet loss
 ./bmctl sessions     # learned play-session history and average duration
 ./bmctl app          # open Control Room
 ./bmctl close        # close game runtime, keep Control Room

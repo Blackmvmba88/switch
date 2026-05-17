@@ -18,6 +18,7 @@
 - `./bmctl repo-clean` limpia caches repo-locales seguras.
 - Documentacion publica con limites reales: bridge browser, no driver XInput.
 - Auto-shutdown de sesion: aprende duracion y apaga solo despues de salir de xCloud y estar en otra app.
+- Modo red para cloud gaming: caffeinate, DNS refresh, jitter/loss monitor y reporte claro.
 
 ## Milestone 2 - Perfil Completo Rock Candy
 

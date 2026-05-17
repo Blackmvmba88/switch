@@ -7,6 +7,7 @@ APP_PORT="${BM_APP_PORT:-8147}"
 APP_STATUS="${HOME}/Library/Application Support/BlackMambaInput/reports/live-status.json"
 XCLOUD_STATUS="${HOME}/Library/Application Support/BlackMambaInput/reports/xcloud-bridge-status.json"
 SESSION_STATUS="${HOME}/Library/Application Support/BlackMambaInput/reports/play-sessions.json"
+NETWORK_STATUS="${HOME}/Library/Application Support/BlackMambaInput/reports/network-game-status.json"
 APP_HID_PID_FILE="${HOME}/Library/Application Support/BlackMambaInput/logs/hid-live-source.pid"
 HID_BIN="${ROOT}/.tmp-runtime-test/hid-live-source"
 HID_PID_FILE="${ROOT}/logs/hid-live-source.pid"
@@ -33,6 +34,9 @@ Uso:
   ./bmctl recycle           Reinicia daemons BlackMamba y mata HID legacy del repo
   ./bmctl game-on           Activa modo juego: auto-reabre xCloud si CDP cae
   ./bmctl game-off          Desactiva modo juego: daemon no intrusivo
+  ./bmctl net-on            Activa optimizador/monitor de red para cloud gaming
+  ./bmctl net-off           Detiene optimizador de red
+  ./bmctl net-status        Estado de latencia, jitter y perdida
   ./bmctl close             Cierra xCloud/CDP/HID/live-monitor y libera RAM
   ./bmctl shutdown          Cierra todo, incluyendo Control Room
   ./bmctl hid               Arranca fuente nativa HID -> live-monitor
@@ -199,6 +203,11 @@ case "${1:-help}" in
       echo "== play sessions =="
       node -e "const fs=require('fs'); const data=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); console.log(JSON.stringify(data.summary||{}, null, 2));" "${SESSION_STATUS}" 2>/dev/null || true
     fi
+    if [[ -f "${NETWORK_STATUS}" ]]; then
+      echo
+      echo "== network game mode =="
+      node -e "const fs=require('fs'); const data=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); console.log(JSON.stringify({mode:data.mode, quality:data.quality, route:data.route, optimizations:data.optimizations}, null, 2));" "${NETWORK_STATUS}" 2>/dev/null || true
+    fi
     echo
     echo "== chrome tabs =="
     chrome_tabs
@@ -235,6 +244,7 @@ case "${1:-help}" in
     ;;
   game-on|gaming-on)
     echo "== modo juego ON =="
+    node "${ROOT}/runtime/network-game-mode.js" start || true
     if ! AUTO_OPEN_XCLOUD=1 "${ROOT}/install-xcloud-bridge-agent.sh" >/dev/null; then
       echo "Aviso: no pude activar el daemon xCloud; usando arranque directo."
     fi
@@ -244,7 +254,17 @@ case "${1:-help}" in
   game-off|gaming-off)
     echo "== modo juego OFF =="
     AUTO_OPEN_XCLOUD=0 "${ROOT}/install-xcloud-bridge-agent.sh" >/dev/null
+    node "${ROOT}/runtime/network-game-mode.js" stop || true
     echo "Modo no intrusivo activo: xCloud solo abre con ./bmctl wake."
+    ;;
+  net-on|network-on)
+    node "${ROOT}/runtime/network-game-mode.js" start
+    ;;
+  net-off|network-off)
+    node "${ROOT}/runtime/network-game-mode.js" stop
+    ;;
+  net-status|network-status)
+    node "${ROOT}/runtime/network-game-mode.js" status
     ;;
   close|close-game|stop-game|cerrar)
     "${ROOT}/close-runtime.sh"
