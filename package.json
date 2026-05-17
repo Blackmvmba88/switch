@@ -9,6 +9,8 @@
     "game-on": "./bmctl game-on",
     "game-off": "./bmctl game-off",
     "status": "./bmctl status",
+    "stop": "./bmctl close",
+    "shutdown": "./bmctl shutdown",
     "clean": "./bmctl repo-clean",
     "preflight": "./bmctl preflight",
     "package": "./bmctl package-beta"

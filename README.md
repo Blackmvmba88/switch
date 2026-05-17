@@ -77,3 +77,12 @@ npm test
 ## License
 
 MIT - See [LICENSE](LICENSE)
+
+## Documentation Index
+
+- [Vision & Philosophy](VISION.md)
+- [Command Reference](docs/commands.md)
+- [Architecture Overview](docs/architecture/README.md)
+- [Semantic Bus & Mappings](docs/semantic-bus/README.md)
+- [Telemetry & Observability](docs/telemetry/README.md)
+- [Roadmap](ROADMAP.md)
