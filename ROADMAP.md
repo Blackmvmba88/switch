@@ -1,52 +1,29 @@
-# Roadmap
+# Roadmap: The Evolution of BlackMamba
 
-## Milestone 0 - Baseline Funcional
+## Phase 1: HID Foundation (Baseline)
+- [x] macOS HID detection (Rock Candy/Switch).
+- [x] Raw frame capture and translation.
+- [x] Browser Gamepad API bridge for xCloud.
+- [x] `bmctl test` offline validation.
 
-- macOS detecta el Rock Candy por HID.
-- El navegador recibe frames por Gamepad API/native source.
-- `runtime/live-monitor.js` mantiene WebSocket y semantic frames.
-- `profiles/*.normalized.json` separa hardware crudo de intencion semantica.
-- `xbox-gamepad-bridge/bridge.js` presenta un gamepad Xbox standard en xCloud.
-- `bmctl test` valida replay, DPad A9, botones de sistema y smoke WebSocket.
+## Phase 2: Semantic Layer (Current)
+- [x] Independent input capture and mapping.
+- [x] Durable semantic profiles (`*.normalized.json`).
+- [x] Fortnite physical layout vs Switch labels.
+- [ ] Guided calibration UI in Control Room.
 
-## Milestone 1 - Operacion Limpia
+## Phase 3: Telemetry & Observability
+- [x] Live events stream (`live-events.jsonl`).
+- [x] Performance metrics (latency, jitter, loss).
+- [ ] Visual telemetry dashboard in Control Room.
+- [ ] Real-time "Semantic Drift" detection.
 
-- Control Room como superficie principal: abrir, verificar, cerrar y mapear.
-- `./bmctl close` libera xCloud/CDP/HID/live-monitor sin matar la app.
-- `./bmctl shutdown` apaga todo.
-- `./bmctl repo-doctor` explica codigo vs runtime local.
-- `./bmctl repo-clean` limpia caches repo-locales seguras.
-- Documentacion publica con limites reales: bridge browser, no driver XInput.
-- Auto-shutdown de sesion: aprende duracion y apaga solo despues de salir de xCloud y estar en otra app.
-- Modo red para cloud gaming: caffeinate, DNS refresh, jitter/loss monitor y reporte claro.
+## Phase 4: Virtual HID Injection
+- [ ] Native macOS Virtual HID driver (DriverKit).
+- [ ] System-wide controller emulation (XInput/DualShock).
+- [ ] Support for non-browser gaming (Steam, native apps).
 
-## Milestone 2 - Perfil Completo Rock Candy
-
-- Captura guiada independiente para cada input.
-- DPad como hat-axis `A9`.
-- Gatillos digitales/analogicos segun hardware observado.
-- Start, Back/Select, L3, R3 y Guide visibles en live buttons.
-- Layouts separados: `xbox-physical` para Fortnite y `switch-labels`.
-
-## Milestone 3 - Robustez De Sesion
-
-- Watchdog para reinyectar despues de redirects de xCloud.
-- Mejor clasificacion: login, catalogo, launch, stream, game frame.
-- Fallback directo si LaunchAgent falla con `bootstrap failed: 5`.
-- Alertas cuando `navigator.getGamepads()` queda vacio.
-- Limpieza controlada de perfiles temporales sin romper partida activa.
-
-## Milestone 4 - Identity Layer
-
-- Comparar descriptor Rock Candy vs Xbox canonical.
-- Mantener `identity/*.json` para perfiles de identidad.
-- Evaluar virtual HID/DriverKit solo como backend futuro.
-- Mantener CDP bridge como backend web confiable para macOS.
-
-## Milestone 5 - Open Source
-
-- README orientado a Mac-first: macOS detecta bien, el runtime ordena capas.
-- CI offline con replay traces.
-- Dataset de perfiles y device signatures.
-- Guia clara para reportar dispositivos nuevos.
-- Separar artefactos historicos de Steam/experimentos en docs de archivo.
+## Phase 5: Adaptive Cybernetic Control
+- [ ] AI-assisted input prediction and smoothing.
+- [ ] Context-aware mapping (automatic layout switching based on game state).
+- [ ] Universal human-machine interface experiments.
