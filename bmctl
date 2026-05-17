@@ -56,6 +56,8 @@ Uso:
   ./bmctl clean             Limpia caches temporales de Chrome del runtime
   ./bmctl repo-doctor       Explica que es codigo, perfil, cache y runtime local
   ./bmctl repo-clean        Cierra runtime y limpia caches repo-locales seguras
+  ./bmctl preflight         Valida dependencias antes de instalar/release
+  ./bmctl package-beta      Genera tar.gz beta limpio desde git
 
 Variables útiles:
   URL=https://www.xbox.com/es-MX/play ./bmctl play
@@ -328,6 +330,12 @@ case "${1:-help}" in
     ;;
   repo-clean|optimize-repo)
     "${ROOT}/repo-hygiene.sh" --apply
+    ;;
+  preflight|doctor-preflight)
+    "${ROOT}/doctor-preflight.sh"
+    ;;
+  package-beta|release-beta)
+    "${ROOT}/package-beta.sh"
     ;;
   save)
     git add -A

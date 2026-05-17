@@ -39,6 +39,12 @@ Known boundary:
 
 ## Quick Start
 
+Beta install:
+
+```bash
+./install.sh
+```
+
 Open the local app:
 
 ```bash
@@ -76,6 +82,12 @@ Close everything, including Control Room:
 
 ```bash
 ./bmctl shutdown
+```
+
+Uninstall:
+
+```bash
+./uninstall.sh
 ```
 
 ## Fortnite Layout
@@ -170,6 +182,24 @@ Close the runtime and clean safe repo-local caches:
 build cache, and scratch Chrome profile. It does not delete source code,
 profiles, fixtures, or the active xCloud CDP profile.
 
+## Beta Release
+
+Preflight:
+
+```bash
+./bmctl preflight
+```
+
+Create a clean beta package:
+
+```bash
+./bmctl package-beta
+```
+
+The package is written under `dist/` and is created from committed git content,
+so local logs, caches, runtime state, and uncommitted live profile edits do not
+leak into the beta artifact.
+
 ## Metacommands
 
 ```bash
@@ -187,6 +217,8 @@ profiles, fixtures, or the active xCloud CDP profile.
 ./bmctl test         # offline replay + live WebSocket smoke
 ./bmctl repo-doctor  # explain repo/runtime state
 ./bmctl repo-clean   # clean safe generated repo-local artifacts
+./bmctl preflight    # validate local dependencies
+./bmctl package-beta # create clean tar.gz beta package
 ```
 
 ## Validation

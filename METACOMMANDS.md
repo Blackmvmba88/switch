@@ -3,6 +3,10 @@
 ## Uso Normal
 
 ```bash
+./install.sh
+```
+
+```bash
 ./bmctl app
 ./bmctl game-on
 ./bmctl verify
@@ -95,6 +99,13 @@ Limpiar caches repo-locales seguras:
 
 ```bash
 ./bmctl repo-clean
+```
+
+Empaquetar beta limpia:
+
+```bash
+./bmctl preflight
+./bmctl package-beta
 ```
 
 ## Validacion

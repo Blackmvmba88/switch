@@ -19,3 +19,6 @@ github-latest-switch/
 
 # Python/http-server scratch logs
 *.log
+
+# Release artifacts
+dist/
