@@ -1,0 +1,20 @@
+{
+  "name": "blackmamba-gaming-runtime",
+  "version": "0.1.0-beta",
+  "description": "HID input bridge for xCloud on macOS",
+  "main": "app/server.js",
+  "scripts": {
+    "start": "./bmctl app",
+    "test": "./test-runtime.sh",
+    "game-on": "./bmctl game-on",
+    "game-off": "./bmctl game-off",
+    "status": "./bmctl status",
+    "clean": "./bmctl repo-clean",
+    "preflight": "./bmctl preflight",
+    "package": "./bmctl package-beta"
+  },
+  "author": "neocyber1",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {}
+}
