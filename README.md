@@ -1,166 +1,246 @@
 # BlackMamba Input Runtime
 
-## App local
+Local macOS controller runtime for using a wired Rock Candy / Nintendo Switch
+controller as a browser-visible Xbox-style gamepad for Xbox Cloud Gaming.
 
-```bash
-./bmctl app
-```
-
-Abre **BlackMamba Control Room** en `http://127.0.0.1:8147`.
-
-La app centraliza:
-
-- Wake/reinject/verify de xCloud.
-- Prueba live de palancas, gatillos, Start, Select/Back, L3, R3 y Guide.
-- Doctor avanzado, RAM, recycle, logs y limpieza.
-- Cambio rapido entre perfil Fortnite/Xbox fisico y Switch labels.
-- Diagnostico de colapso con `./bmctl app-why`.
-
-La app corre como LaunchAgent (`com.blackmamba.control-room`) para que no se
-muera cuando termina la terminal que la abrio.
-
-Flujo corto para Fortnite:
-
-```bash
-./bmctl fortnite-map
-./bmctl app
-```
-
-Luego usar `Wake xCloud`, `Verify` y `Botones Live` desde la app.
-
-Runtime local para convertir un control Rock Candy / Nintendo Switch HID en un gamepad Xbox virtual dentro de Xbox Cloud Gaming.
-
-Estado actual:
-
-- macOS detecta el Rock Candy por HID.
-- El runtime lee eventos nativos HID.
-- El live monitor traduce a eventos semanticos.
-- El bridge inyectado por Chrome DevTools presenta un `Xbox 360 Controller` con `mapping: standard`.
-- xCloud ya entro a Microsoft Flight Simulator con el control virtual visible.
-
-## Jugar
-
-```bash
-./bmctl play
-```
-
-Esto arranca:
+The important idea is simple: **macOS already does a surprisingly good job at
+seeing this controller**. The runtime does not pretend the Mac is broken. It
+organizes the layers around the Mac:
 
 ```text
-Rock Candy HID
--> hid-live-source
--> live-monitor websocket
--> semantic runtime
--> CDP-injected Xbox bridge
+USB / HID device
+-> macOS IOHID + browser Gamepad API
+-> semantic controller profile
+-> local WebSocket runtime
+-> Chrome DevTools injected Xbox gamepad bridge
 -> xCloud
 ```
 
-Si xCloud cambia de pagina, login, juego o pantalla y pierde el control:
+This repo is a lab and runtime for making that path visible, testable, and
+recoverable.
+
+## Current State
+
+Working pieces:
+
+- macOS detects the Rock Candy controller through HID.
+- Browser polling sees live frames from the controller.
+- The profile layer maps physical inputs into semantic Xbox-style controls.
+- The D-pad is decoded as a hat axis on `A9`.
+- The CDP bridge exposes an Xbox-like `navigator.getGamepads()` entry:
+  `Xbox 360 Controller (XInput STANDARD GAMEPAD Vendor: 045e Product: 028e)`.
+- Control Room provides a local UI for launch, verify, remap, logs, RAM, and
+  shutdown.
+
+Known boundary:
+
+- This is a browser bridge, not a signed system-wide XInput driver.
+- If Chrome CDP or xCloud changes state, use `./bmctl reinject`.
+
+## Quick Start
+
+Open the local app:
 
 ```bash
-./bmctl reinject
+./bmctl app
 ```
 
-Verificar si la pagina actual ve el Xbox virtual:
+Run xCloud in game mode:
+
+```bash
+./bmctl game-on
+```
+
+Verify the virtual Xbox pad:
 
 ```bash
 ./bmctl verify
 ```
 
-Debe aparecer algo parecido a:
+Close the game runtime when done:
+
+```bash
+./bmctl close
+```
+
+Close everything, including Control Room:
+
+```bash
+./bmctl shutdown
+```
+
+## Fortnite Layout
+
+For Fortnite, use Xbox physical button positions:
+
+```bash
+./bmctl fortnite-map
+./bmctl game-on
+```
+
+If xCloud is already open:
+
+```bash
+./bmctl reinject
+```
+
+## Control Room
+
+```bash
+./bmctl app
+```
+
+Control Room runs at `http://127.0.0.1:8147` and centralizes:
+
+- Wake xCloud
+- Verify virtual Xbox pad
+- Live buttons and axes
+- Fortnite/Switch layout switching
+- Independent per-input mapper
+- Doctor, status, RAM, recycle, logs
+- Safe close button for game/runtime processes
+
+The app is served by LaunchAgent:
+
+```text
+com.blackmamba.control-room
+```
+
+## What Is What
+
+```text
+bmctl
+  main operator command
+
+app/
+  local Control Room UI
+
+runtime/
+  HID source, live monitor, translator, CDP injector, diagnostics
+
+xbox-gamepad-bridge/
+  browser-side Gamepad API bridge used inside xCloud
+
+profiles/
+  durable semantic mappings, including Rock Candy Switch -> Xbox layout
+
+fixtures/
+  test samples used by replay and validation
+
+fixtures/rock-candy-profile-test.normalized.json
+  stable CI/test profile; does not change when the user remaps the live profile
+
+device-signatures/
+  observed USB/HID device fingerprints
+
+logs/, .tmp-runtime-test/, chrome-xbox-control-profile/
+  local generated runtime state, ignored by git
+
+/tmp/blackmamba-xcloud-cdp-profile
+  active Chrome CDP profile used while playing
+
+~/Library/Application Support/BlackMambaInput
+  installed runtime copy, LaunchAgent logs, active profile, status reports
+```
+
+## Repo Hygiene
+
+Report what is source code vs generated runtime state:
+
+```bash
+./bmctl repo-doctor
+```
+
+Close the runtime and clean safe repo-local caches:
+
+```bash
+./bmctl repo-clean
+```
+
+`repo-clean` removes only local runtime artifacts such as repo logs, temporary
+build cache, and scratch Chrome profile. It does not delete source code,
+profiles, fixtures, or the active xCloud CDP profile.
+
+## Metacommands
+
+```bash
+./bmctl game-on      # open xCloud and inject the Xbox bridge
+./bmctl play         # direct open/inject path
+./bmctl reinject     # reapply bridge to current xCloud page
+./bmctl verify       # prove xCloud sees the virtual Xbox pad
+./bmctl buttons      # live controls: sticks, triggers, Back, Start, L3, R3
+./bmctl status       # runtime status, HID, monitor, CDP tabs
+./bmctl app          # open Control Room
+./bmctl close        # close game runtime, keep Control Room
+./bmctl shutdown     # close runtime and Control Room
+./bmctl test         # offline replay + live WebSocket smoke
+./bmctl repo-doctor  # explain repo/runtime state
+./bmctl repo-clean   # clean safe generated repo-local artifacts
+```
+
+## Validation
+
+Full validation:
+
+```bash
+./bmctl test
+```
+
+Expected final line:
+
+```text
+OK runtime robust
+```
+
+Runtime proof in xCloud:
+
+```bash
+./bmctl verify
+```
+
+Expected signal:
 
 ```json
 {
   "installed": true,
+  "debug": {
+    "connected": true,
+    "hasFrame": true
+  },
   "pads": [
     {
       "id": "Xbox 360 Controller (XInput STANDARD GAMEPAD Vendor: 045e Product: 028e)",
-      "mapping": "standard",
-      "buttons": 17,
-      "axes": 4
+      "mapping": "standard"
     }
   ]
 }
 ```
 
-## Metacomandos
-
-```bash
-./bmctl play       # abre xCloud con bridge CDP
-./bmctl reinject   # reinyecta en la pestana xCloud actual
-./bmctl verify     # confirma Xbox virtual en navigator.getGamepads()
-./bmctl status     # live monitor, HID source y pestanas Chrome
-./bmctl doctor     # diagnostico HID / browser / xCloud
-./bmctl hid        # arranca HID nativo -> live-monitor
-./bmctl stop-hid   # detiene HID source
-./bmctl lab        # abre laboratorio visual
-./bmctl test       # pruebas offline + smoke live
-./bmctl logs       # logs recientes
-./bmctl clean      # limpia caches temporales seguros
-./bmctl save       # commit local
-```
-
-## Arquitectura
+## Architecture
 
 ```text
 runtime/hid-live-source.swift
-  lee Rock Candy desde IOHIDManager
+  reads Rock Candy through IOHIDManager
 
 runtime/live-monitor.js
-  recibe frames por WebSocket
-  traduce con profiles/*.normalized.json
-  emite semantic-frame
+  receives browser/native frames, applies profile, emits semantic frames
+
+profiles/*.normalized.json
+  maps raw sources like B1 or A9 into semantic controls like A or DPad_Up
 
 xbox-gamepad-bridge/bridge.js
-  se inyecta en la pagina xCloud
-  reemplaza navigator.getGamepads()
-  presenta Xbox 360 Controller standard
+  runs in xCloud page and exposes a standard Xbox-like gamepad
 
 runtime/inject-bridge-cdp.js
-  usa Chrome DevTools Protocol
-  evita instalar extension manualmente
+  uses Chrome DevTools Protocol to inject and verify the bridge
+
+app/server.js + app/public/
+  local Control Room for operation and mapping
 ```
 
-## Diagnostico
+## Notes
 
-Estado del runtime:
-
-```bash
-./bmctl status
-```
-
-HID puro:
-
-```bash
-./hid-raw-monitor.sh
-```
-
-Replay de trazas:
-
-```bash
-node runtime/replay-trace.js --trace outputs/runtime-frames-20260506-134158.json --expect A
-```
-
-Diff semantico entre perfiles:
-
-```bash
-node runtime/semantic-diff.js profiles/a.normalized.json profiles/b.normalized.json
-```
-
-## Notas importantes
-
-- La ruta que funciono para jugar no fue Steam.
-- La ruta funcional es CDP bridge + HID native source.
-- `GCVirtualController` no esta disponible en este SDK/macOS actual.
-- La extension unpacked puede fallar por carga/inyeccion; CDP es la ruta confiable.
-- No borrar `/tmp/blackmamba-xcloud-cdp-profile` mientras se esta jugando.
-
-## Archivos clave
-
-- [bmctl](./bmctl)
-- [play-xcloud-cdp-bridge.sh](./play-xcloud-cdp-bridge.sh)
-- [runtime/hid-live-source.swift](./runtime/hid-live-source.swift)
-- [runtime/live-monitor.js](./runtime/live-monitor.js)
-- [runtime/inject-bridge-cdp.js](./runtime/inject-bridge-cdp.js)
-- [xbox-gamepad-bridge/bridge.js](./xbox-gamepad-bridge/bridge.js)
-- [profiles/rock-candy-wired-controller-for-nintendo-switch-vendor-0e6f-product-0187.normalized.json](./profiles/rock-candy-wired-controller-for-nintendo-switch-vendor-0e6f-product-0187.normalized.json)
+- The path that worked best here is not Steam Input.
+- The reliable local path is HID/native source + live monitor + CDP bridge.
+- Do not delete `/tmp/blackmamba-xcloud-cdp-profile` during a game session.
+- Use `./bmctl close` before heavy work if you want RAM and browser state clean.

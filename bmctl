@@ -48,6 +48,8 @@ Uso:
   ./bmctl save              Guarda commit local del runtime
   ./bmctl logs              Muestra logs recientes
   ./bmctl clean             Limpia caches temporales de Chrome del runtime
+  ./bmctl repo-doctor       Explica que es codigo, perfil, cache y runtime local
+  ./bmctl repo-clean        Cierra runtime y limpia caches repo-locales seguras
 
 Variables útiles:
   URL=https://www.xbox.com/es-MX/play ./bmctl play
@@ -286,6 +288,12 @@ case "${1:-help}" in
   clean)
     rm -rf /tmp/blackmamba-xcloud-bridge-profile /tmp/blackmamba-xcloud-bridge-verify-profile
     echo "Limpieza lista. No borre /tmp/blackmamba-xcloud-cdp-profile para no romper la sesion activa."
+    ;;
+  repo-doctor|repo-status|hygiene)
+    "${ROOT}/repo-hygiene.sh" report
+    ;;
+  repo-clean|optimize-repo)
+    "${ROOT}/repo-hygiene.sh" --apply
     ;;
   save)
     git add -A

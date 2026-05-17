@@ -1,112 +1,108 @@
 # Metacomandos
 
-## App principal
+## Uso Normal
 
 ```bash
 ./bmctl app
-```
-
-Abre **BlackMamba Control Room**, la app local para jugar, verificar botones,
-diagnosticar, reciclar el runtime y ver logs sin memorizar comandos.
-
-Si la app no abre o se cae:
-
-```bash
-./bmctl app-why
-```
-
-Para detenerla:
-
-```bash
-./bmctl app-stop
-```
-
-## Flujo recomendado para Fortnite
-
-```bash
-./bmctl fortnite-map
-./bmctl app
-```
-
-Dentro de la app:
-
-1. `Wake xCloud`
-2. `Verify`
-3. `Botones Live`
-
-## Comandos principales
-
-```bash
-./bmctl wake
-./bmctl reinject
-./bmctl verify
-./bmctl buttons
-./bmctl status
-./bmctl doctor-advanced
-./bmctl test
-```
-
-Sesion normal:
-
-```bash
-./bmctl wake
-```
-
-Si ya estas en xCloud y el control deja de responder:
-
-```bash
-./bmctl reinject
-./bmctl verify
-```
-
-Si el runtime se pone inestable:
-
-```bash
-./bmctl recycle
-./bmctl wake
-./bmctl verify
-```
-
-Probar botones, gatillos, Start, Select/Back, L3 y R3:
-
-```bash
-./bmctl buttons
-```
-
-Modo agresivo solo cuando vas a jugar:
-
-```bash
 ./bmctl game-on
+./bmctl verify
+```
+
+Si el control deja de responder en xCloud:
+
+```bash
+./bmctl reinject
+./bmctl verify
 ```
 
 Cuando termines:
 
 ```bash
-./bmctl game-off
+./bmctl close
 ```
 
-Si Chrome lleno el disco con perfiles temporales:
+Si quieres cerrar todo:
 
 ```bash
-./bmctl clean
+./bmctl shutdown
 ```
 
-Guardar avance local:
+## Fortnite
 
 ```bash
-./bmctl save
+./bmctl fortnite-map
+./bmctl game-on
 ```
 
-Atajos con URL:
+Regresar etiquetas Nintendo/Switch:
+
+```bash
+./bmctl switch-map
+```
+
+## Diagnostico
+
+```bash
+./bmctl status
+./bmctl doctor-advanced
+./bmctl buttons
+./bmctl ram
+./bmctl logs
+```
+
+`buttons` muestra palancas, gatillos, Back/Select, Start, L3, R3 y Guide.
+
+## Estabilidad
+
+```bash
+./bmctl recycle
+./bmctl reinject
+```
+
+Si Chrome/CDP no responde:
+
+```bash
+./bmctl close
+./bmctl game-on
+```
+
+## Repo Limpio
+
+Ver que es codigo y que es runtime local:
+
+```bash
+./bmctl repo-doctor
+```
+
+Limpiar caches repo-locales seguras:
+
+```bash
+./bmctl repo-clean
+```
+
+## Validacion
+
+```bash
+./bmctl test
+```
+
+El resultado bueno termina en:
+
+```text
+OK runtime robust
+```
+
+## URLs
 
 ```bash
 URL="https://www.xbox.com/es-MX/play" ./bmctl play
 URL="https://www.xbox.com/es-MX/play/launch/microsoft-flight-simulator-2024/9P38D19T7LRV" ./bmctl play
 ```
 
-Debug:
+## Logs Utiles
 
 ```bash
 tail -f logs/hid-live-source.log
 tail -f "$HOME/Library/Application Support/BlackMambaInput/logs/live-events.jsonl"
+tail -f "$HOME/Library/Application Support/BlackMambaInput/logs/xcloud-bridge-agent.err.log"
 ```

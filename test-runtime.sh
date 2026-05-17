@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TMP_DIR="${ROOT}/.tmp-runtime-test"
 SAMPLE_FIXTURE="${ROOT}/fixtures/rock-candy-sample-min.json"
-PROFILE_FIXTURE="${ROOT}/profiles/rock-candy-wired-controller-for-nintendo-switch-vendor-0e6f-product-0187.normalized.json"
+PROFILE_FIXTURE="${ROOT}/fixtures/rock-candy-profile-test.normalized.json"
 TRACE_OUT="${TMP_DIR}/runtime-frames.json"
 
 mkdir -p "${TMP_DIR}"
@@ -20,7 +20,7 @@ node --check "${ROOT}/runtime/semantic-diff.js"
 node --check "${ROOT}/adapters/debug/print-trace.js"
 node --check "${ROOT}/app/server.js"
 node --check "${ROOT}/app/public/app.js"
-bash -n "${ROOT}/start-live-monitor.sh" "${ROOT}/stop-live-monitor.sh" "${ROOT}/controller-watchdog.sh" "${ROOT}/install-controller-watch-agent.sh" "${ROOT}/uninstall-controller-watch-agent.sh" "${ROOT}/install-live-monitor-agent.sh" "${ROOT}/uninstall-live-monitor-agent.sh" "${ROOT}/hid-raw-monitor.sh" "${ROOT}/press-a-live-test.sh" "${ROOT}/close-runtime.sh"
+bash -n "${ROOT}/start-live-monitor.sh" "${ROOT}/stop-live-monitor.sh" "${ROOT}/controller-watchdog.sh" "${ROOT}/install-controller-watch-agent.sh" "${ROOT}/uninstall-controller-watch-agent.sh" "${ROOT}/install-live-monitor-agent.sh" "${ROOT}/uninstall-live-monitor-agent.sh" "${ROOT}/hid-raw-monitor.sh" "${ROOT}/press-a-live-test.sh" "${ROOT}/close-runtime.sh" "${ROOT}/repo-hygiene.sh"
 CLANG_MODULE_CACHE_PATH="${TMP_DIR}/clang-module-cache" swiftc "${ROOT}/runtime/hid-raw-monitor.swift" -o "${TMP_DIR}/hid-raw-monitor"
 
 echo "== JSON checks =="
