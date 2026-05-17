@@ -61,6 +61,15 @@ Game mode also starts the network game monitor. It keeps the Mac awake with
 `caffeinate`, flushes the local DNS cache once, and tracks gateway/internet/xCloud
 latency, jitter, and packet loss. It does not make destructive network changes.
 
+When playing over Ethernet, prefer wired mode:
+
+```bash
+./bmctl net-wired
+```
+
+That turns Wi-Fi off for the session, refreshes local DNS, restarts the network
+monitor, and confirms the default route is using the Ethernet interface.
+
 Verify the virtual Xbox pad:
 
 ```bash

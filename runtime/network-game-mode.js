@@ -13,6 +13,7 @@ const caffeinatePidFile = path.join(logDir, "network-caffeinate.pid");
 const statusPath = path.join(reportDir, "network-game-status.json");
 const logPath = path.join(logDir, "network-game-events.jsonl");
 const sampleIntervalMs = Number(process.env.NET_SAMPLE_INTERVAL_MS || 10000);
+const wifiDevice = process.env.NET_WIFI_DEVICE || "en1";
 const targets = [
   { name: "internet", host: process.env.NET_INTERNET_HOST || "1.1.1.1" },
   { name: "xcloud", host: process.env.NET_XCLOUD_HOST || "www.xbox.com" }
@@ -76,6 +77,25 @@ async function routeInfo() {
   return parseRoute(result.stdout || result.stderr);
 }
 
+async function interfaceStatus(device) {
+  const result = await run("/sbin/ifconfig", [device], 3000);
+  const text = result.stdout || result.stderr;
+  const status = text.match(/status:\s+([^\n]+)/)?.[1]?.trim() || "unknown";
+  const inet = text.match(/\n\s*inet\s+([^\s]+)/)?.[1]?.trim() || "";
+  return { device, status, inet, active: status === "active" && Boolean(inet) };
+}
+
+async function hardwarePortForDevice(device) {
+  const result = await run("/usr/sbin/networksetup", ["-listallhardwareports"], 3000);
+  const blocks = String(result.stdout || "").split(/\n\n+/);
+  for (const block of blocks) {
+    if (new RegExp(`Device:\\s+${device}\\b`).test(block)) {
+      return block.match(/Hardware Port:\s+([^\n]+)/)?.[1]?.trim() || "";
+    }
+  }
+  return "";
+}
+
 function parsePing(text) {
   const lossMatch = text.match(/(\d+(?:\.\d+)?)% packet loss/);
   const statsMatch = text.match(/round-trip min\/avg\/max\/stddev = ([\d.]+)\/([\d.]+)\/([\d.]+)\/([\d.]+) ms/);
@@ -105,6 +125,8 @@ function classify(samples) {
 
 async function sample() {
   const route = await routeInfo();
+  const routeHardwarePort = route.interface ? await hardwarePortForDevice(route.interface) : "";
+  const wifi = await interfaceStatus(wifiDevice).catch(() => ({ device: wifiDevice, status: "unknown", inet: "", active: false }));
   const allTargets = route.gateway
     ? [{ name: "gateway", host: route.gateway }, ...targets]
     : targets;
@@ -117,12 +139,17 @@ async function sample() {
     protocol: "blackmamba.network.game.v0",
     updatedAt: new Date().toISOString(),
     mode: "game-network",
-    route,
+    route: { ...route, hardwarePort: routeHardwarePort },
+    interfaces: {
+      wifi
+    },
     quality,
     samples,
     optimizations: {
       caffeinate: alive(readPid(caffeinatePidFile)),
       dnsCacheFlush: "attempted-on-start",
+      wiredPreferred: routeHardwarePort.toLowerCase().includes("ethernet"),
+      wifiDisabled: !wifi.active,
       destructiveChanges: false
     }
   };
@@ -177,6 +204,14 @@ async function start() {
   console.log(`Status: ${statusPath}`);
 }
 
+async function wired() {
+  ensureDirs();
+  await run("/usr/sbin/networksetup", ["-setairportpower", wifiDevice, "off"], 5000);
+  await run("/usr/bin/dscacheutil", ["-flushcache"], 3000);
+  stop();
+  await start();
+}
+
 function stop() {
   const pids = [readPid(pidFile), readPid(caffeinatePidFile)].filter(Boolean);
   for (const pid of pids) {
@@ -207,10 +242,11 @@ async function status() {
 async function main() {
   const command = process.argv[2] || "status";
   if (command === "start") return start();
+  if (command === "wired") return wired();
   if (command === "monitor") return monitor();
   if (command === "stop") return stop();
   if (command === "status") return status();
-  console.error("Uso: node runtime/network-game-mode.js [start|stop|status|monitor]");
+  console.error("Uso: node runtime/network-game-mode.js [start|wired|stop|status|monitor]");
   process.exit(2);
 }
 
