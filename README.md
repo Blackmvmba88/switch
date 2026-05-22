@@ -1,47 +1,33 @@
-# BlackMamba Input Runtime
+# BlackMamba Cybernetic Runtime (BCR) 🐍🔥
 
-Local macOS controller runtime for using a wired Rock Candy / Nintendo Switch
-controller as a browser-visible Xbox-style gamepad for Xbox Cloud Gaming.
+The BlackMamba Cybernetic Runtime is a high-performance, semantic-first input translation layer designed to bridge the gap between human hardware and machine intent on macOS.
 
-The important idea is simple: **macOS already does a surprisingly good job at
-seeing this controller**. The runtime does not pretend the Mac is broken. It
-organizes the layers around the Mac:
+> "It's not a mapper. It's a cybernetic interoperability platform."
+
+## Conceptual Pipeline
 
 ```text
 USB / HID device
 -> macOS IOHID + browser Gamepad API
--> semantic controller profile
--> local WebSocket runtime
--> Chrome DevTools injected Xbox gamepad bridge
--> xCloud
+-> Semantic Translation Layer (BCR Bus)
+-> Telemetry & Observability
+-> High-Fidelity Injection (CDP Bridge)
+-> xCloud / Target Application
 ```
 
-This repo is a lab and runtime for making that path visible, testable, and
-recoverable.
+## Architecture
 
-## Current State
-
-Working pieces:
-
-- macOS detects the Rock Candy controller through HID.
-- Browser polling sees live frames from the controller.
-- The profile layer maps physical inputs into semantic Xbox-style controls.
-- The D-pad is decoded as a hat axis on `A9`.
-- The CDP bridge exposes an Xbox-like `navigator.getGamepads()` entry:
-  `Xbox 360 Controller (XInput STANDARD GAMEPAD Vendor: 045e Product: 028e)`.
-- Control Room provides a local UI for launch, verify, remap, logs, RAM, and
-  shutdown.
-
-Known boundary:
-
-- This is a browser bridge, not a signed system-wide XInput driver.
-- If Chrome CDP or xCloud changes state, use `./bmctl reinject`.
+BCR is built on several key pillars:
+- **[Vision](VISION.md):** Our philosophy of human-machine interaction.
+- **[Roadmap](ROADMAP.md):** The phased evolution from HID bridge to adaptive systems.
+- **[Documentation](docs/architecture/):** Detailed architectural breakdowns.
 
 ## Quick Start
 
-Beta install:
+### Installation
 
 ```bash
+npm install
 ./install.sh
 ```
 
@@ -216,105 +202,55 @@ profiles, fixtures, or the active xCloud CDP profile.
 Preflight:
 
 ```bash
-./bmctl preflight
+npm run game-on
 ```
 
-Create a clean beta package:
+### Control Room (UI)
 
 ```bash
-./bmctl package-beta
+bmctl app
 ```
 
-The package is written under `dist/` and is created from committed git content,
-so local logs, caches, runtime state, and uncommitted live profile edits do not
-leak into the beta artifact.
-
-## Metacommands
+### Diagnostics
 
 ```bash
-./bmctl game-on      # open xCloud and inject the Xbox bridge
-./bmctl play         # direct open/inject path
-./bmctl reinject     # reapply bridge to current xCloud page
-./bmctl verify       # prove xCloud sees the virtual Xbox pad
-./bmctl buttons      # live controls: sticks, triggers, Back, Start, L3, R3
-./bmctl status       # runtime status, HID, monitor, CDP tabs
-./bmctl net-status   # gaming network latency, jitter, packet loss
-./bmctl sessions     # learned play-session history and average duration
-./bmctl app          # open Control Room
-./bmctl close        # close game runtime, keep Control Room
-./bmctl shutdown     # close runtime and Control Room
-./bmctl test         # offline replay + live WebSocket smoke
-./bmctl repo-doctor  # explain repo/runtime state
-./bmctl repo-clean   # clean safe generated repo-local artifacts
-./bmctl preflight    # validate local dependencies
-./bmctl package-beta # create clean tar.gz beta package
+npm run status
+npm run preflight
 ```
 
-## Validation
+## Laboratory & Tools
 
-Full validation:
+BCR includes a suite of laboratory tools for input research:
+- **Live Monitor:** Real-time WebSocket event stream.
+- **Replay Trace:** Offline validation of input sequences.
+- **Semantic Diff:** Analytical comparison of controller profiles.
+- **Visualizer:** (Work in Progress) Interactive telemetry dashboard.
+
+## Development
+
+### Testing
 
 ```bash
-./bmctl test
+npm test
 ```
 
-Expected final line:
+### Project Structure
 
-```text
-OK runtime robust
-```
+- `runtime/`: Core translators, live monitor, CDP injector.
+- `xbox-gamepad-bridge/`: Browser Gamepad API bridge.
+- `profiles/`: Durable semantic controller profiles.
+- `app/`: Local Control Room UI.
+- `docs/`: Architectural and conceptual documentation.
 
-Runtime proof in xCloud:
+## License
 
-```bash
-./bmctl verify
-```
+MIT - See [LICENSE](LICENSE)
 
-Expected signal:
+## Documentation Index
 
-```json
-{
-  "installed": true,
-  "debug": {
-    "connected": true,
-    "hasFrame": true
-  },
-  "pads": [
-    {
-      "id": "Xbox 360 Controller (XInput STANDARD GAMEPAD Vendor: 045e Product: 028e)",
-      "mapping": "standard"
-    }
-  ]
-}
-```
-
-## Architecture
-
-```text
-runtime/hid-live-source.swift
-  reads Rock Candy through IOHIDManager
-
-runtime/live-monitor.js
-  receives browser/native frames, applies profile, emits semantic frames
-
-profiles/*.normalized.json
-  maps raw sources like B1 or A9 into semantic controls like A or DPad_Up
-
-xbox-gamepad-bridge/bridge.js
-  runs in xCloud page and exposes a standard Xbox-like gamepad
-
-runtime/inject-bridge-cdp.js
-  uses Chrome DevTools Protocol to inject and verify the bridge
-
-app/server.js + app/public/
-  local Control Room for operation and mapping
-```
-
-## Notes
-
-- The path that worked best here is not Steam Input.
-- The reliable local path is HID/native source + live monitor + CDP bridge.
-- Do not delete `/tmp/blackmamba-xcloud-cdp-profile` during a game session.
-- Use `./bmctl close` before heavy work if you want RAM and browser state clean.
-- Auto-shutdown waits for evidence that you left the game; it does not close
-  just because a timer expired.
+- [Vision & Philosophy](VISION.md)
+- [Command Reference](docs/commands.md)
+- [Architecture Overview](docs/architecture/README.md)
+- [Semantic Bus & Mappings](docs/semantic-bus/README.md)
+- [Telemetry & Observability](docs/telemetry/README.md)
+- [Roadmap](ROADMAP.md)
