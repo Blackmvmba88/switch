@@ -36,6 +36,7 @@ Uso:
   ./bmctl game-on           Activa modo juego: auto-reabre xCloud si CDP cae
   ./bmctl game-off          Desactiva modo juego: daemon no intrusivo
   ./bmctl net-on            Activa optimizador/monitor de red para cloud gaming
+  ./bmctl net-wired         Modo cable: apaga Wi-Fi y reinicia monitor de red
   ./bmctl net-off           Detiene optimizador de red
   ./bmctl net-status        Estado de latencia, jitter y perdida
   ./bmctl close             Cierra xCloud/CDP/HID/live-monitor y libera RAM
@@ -265,6 +266,9 @@ case "${1:-help}" in
     ;;
   net-on|network-on)
     node "${ROOT}/runtime/network-game-mode.js" start
+    ;;
+  net-wired|wired|cable)
+    node "${ROOT}/runtime/network-game-mode.js" wired
     ;;
   net-off|network-off)
     node "${ROOT}/runtime/network-game-mode.js" stop

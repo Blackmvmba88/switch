@@ -31,7 +31,175 @@ npm install
 ./install.sh
 ```
 
-### Gaming Mode
+Open the local app:
+
+```bash
+./bmctl app
+```
+
+Run xCloud in game mode:
+
+```bash
+./bmctl game-on
+```
+
+Game mode also starts the network game monitor. It keeps the Mac awake with
+`caffeinate`, flushes the local DNS cache once, and tracks gateway/internet/xCloud
+latency, jitter, and packet loss. It does not make destructive network changes.
+
+When playing over Ethernet, prefer wired mode:
+
+```bash
+./bmctl net-wired
+```
+
+That turns Wi-Fi off for the session, refreshes local DNS, restarts the network
+monitor, and confirms the default route is using the Ethernet interface.
+
+Verify the virtual Xbox pad:
+
+```bash
+./bmctl verify
+```
+
+Close the game runtime when done:
+
+```bash
+./bmctl close
+```
+
+When game mode is installed, the xCloud agent also learns session length. It is
+conservative: it only auto-closes after a real play session, after the xCloud
+window/tab disappears, and after another app is frontmost for a grace period.
+The default minimum session before auto-shutdown is 30 minutes.
+
+Close everything, including Control Room:
+
+```bash
+./bmctl shutdown
+```
+
+Uninstall:
+
+```bash
+./uninstall.sh
+```
+
+## Fortnite Layout
+
+For Fortnite, use Xbox physical button positions:
+
+```bash
+./bmctl fortnite-map
+./bmctl game-on
+```
+
+This intentionally ignores the letters printed on the Switch/Rock Candy shell
+and maps by where the button sits:
+
+| Physical button | Printed on Switch pad | Xbox meaning |
+| --- | --- | --- |
+| Bottom | B | A |
+| Right | A | B |
+| Left | Y | X |
+| Top | X | Y |
+
+The D-pad is also part of this profile. The Rock Candy reports it as one
+quantized hat axis, not four normal buttons:
+
+| D-pad direction | Raw source | Xbox button |
+| --- | --- | --- |
+| Up | `A9=-1` | `buttons[12]` |
+| Down | `A9=0.143` | `buttons[13]` |
+| Left | `A9=0.714` | `buttons[14]` |
+| Right | `A9=-0.429` | `buttons[15]` |
+
+If xCloud is already open:
+
+```bash
+./bmctl reinject
+```
+
+## Control Room
+
+```bash
+./bmctl app
+```
+
+Control Room runs at `http://127.0.0.1:8147` and centralizes:
+
+- Wake xCloud
+- Verify virtual Xbox pad
+- Live buttons and axes
+- Fortnite/Switch layout switching
+- Independent per-input mapper
+- Doctor, status, RAM, recycle, logs
+- Safe close button for game/runtime processes
+
+The app is served by LaunchAgent:
+
+```text
+com.blackmamba.control-room
+```
+
+## What Is What
+
+```text
+bmctl
+  main operator command
+
+app/
+  local Control Room UI
+
+runtime/
+  HID source, live monitor, translator, CDP injector, diagnostics
+
+xbox-gamepad-bridge/
+  browser-side Gamepad API bridge used inside xCloud
+
+profiles/
+  durable semantic mappings, including Rock Candy Switch -> Xbox layout
+
+fixtures/
+  test samples used by replay and validation
+
+fixtures/rock-candy-profile-test.normalized.json
+  stable CI/test profile; does not change when the user remaps the live profile
+
+device-signatures/
+  observed USB/HID device fingerprints
+
+logs/, .tmp-runtime-test/, chrome-xbox-control-profile/
+  local generated runtime state, ignored by git
+
+/tmp/blackmamba-xcloud-cdp-profile
+  active Chrome CDP profile used while playing
+
+~/Library/Application Support/BlackMambaInput
+  installed runtime copy, LaunchAgent logs, active profile, status reports
+```
+
+## Repo Hygiene
+
+Report what is source code vs generated runtime state:
+
+```bash
+./bmctl repo-doctor
+```
+
+Close the runtime and clean safe repo-local caches:
+
+```bash
+./bmctl repo-clean
+```
+
+`repo-clean` removes only local runtime artifacts such as repo logs, temporary
+build cache, and scratch Chrome profile. It does not delete source code,
+profiles, fixtures, or the active xCloud CDP profile.
+
+## Beta Release
+
+Preflight:
 
 ```bash
 npm run game-on

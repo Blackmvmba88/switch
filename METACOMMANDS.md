@@ -88,6 +88,16 @@ runtime va aprendiendo.
 ./bmctl net-off
 ```
 
+Si estas conectado por cable, usa:
+
+```bash
+./bmctl net-wired
+./bmctl net-status
+```
+
+`net-wired` apaga Wi-Fi, refresca DNS local y reinicia el monitor para que la
+ruta quede por Ethernet.
+
 `game-on` activa `net-on` automaticamente. El modo red mantiene la Mac despierta,
 refresca DNS local una vez y monitorea latencia/jitter/perdida contra gateway,
 internet y xCloud.
