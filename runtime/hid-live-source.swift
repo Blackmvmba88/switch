@@ -10,6 +10,7 @@ final class HIDLiveSource: NSObject, URLSessionWebSocketDelegate {
   var axes = Array(repeating: 0.0, count: 10)
   var startedAt = Date()
   var lastSent = Date(timeIntervalSince1970: 0)
+  var isDeviceConnected = false
 
   init(vendorId: Int = 0x0e6f, productId: Int = 0x0187) {
     self.vendorId = vendorId
@@ -20,7 +21,7 @@ final class HIDLiveSource: NSObject, URLSessionWebSocketDelegate {
   }
 
   func start() {
-    print("hid-live-source attempting to start with VendorID: 0x\(String(format: "%X", vendorId)), ProductID: 0x\(String(format: "%X", productId))") // Log IDs being used
+    print("BCR HID Source starting [0x\(String(format: "%X", vendorId)):0x\(String(format: "%X", productId))]")
     let matching: [String: Any] = [
       kIOHIDVendorIDKey as String: vendorId,
       kIOHIDProductIDKey as String: productId
@@ -31,32 +32,40 @@ final class HIDLiveSource: NSObject, URLSessionWebSocketDelegate {
     IOHIDManagerRegisterDeviceMatchingCallback(manager, deviceConnectedCallback, context)
     IOHIDManagerRegisterDeviceRemovalCallback(manager, deviceDisconnectedCallback, context)
     IOHIDManagerScheduleWithRunLoop(manager, CFRunLoopGetCurrent(), CFRunLoopMode.defaultMode.rawValue)
-    let result = IOHIDManagerOpen(manager, IOOptionBits(kIOHIDOptionsTypeNone))
 
-    // Check for errors when opening the HID manager
+    let result = IOHIDManagerOpen(manager, IOOptionBits(kIOHIDOptionsTypeNone))
     if result != 0 {
-        print("ERROR: Failed to open HID Manager. Error code: \(result). Cannot proceed.")
-        // Optionally, try to list available devices here if opening fails to help diagnose
-        // For now, we exit if the manager cannot be opened.
-        exit(Int32(result)) // Exit with the error code
+        print("FATAL: Failed to open HID Manager: \(result)")
+        exit(Int32(result))
     }
-    print("hid-live-source started successfully.") // Success message
 
     connectWebSocket()
-    Timer.scheduledTimer(withTimeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
+
+    Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
       self?.sendFrame()
     }
+
+    // Heartbeat to keep monitor informed even if no physical input
+    Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
+      self?.socket?.send(.string("{\"type\":\"heartbeat\",\"from\":\"hid-live-source\"}")) { _ in }
+    }
+
     RunLoop.main.run()
   }
 
-
   func connectWebSocket() {
+    print("Connecting to BCR Semantic Bus...")
     let url = URL(string: "ws://127.0.0.1:8137/live")!
     let session = URLSession(configuration: .default, delegate: self, delegateQueue: OperationQueue())
     socket = session.webSocketTask(with: url)
     socket?.resume()
-    socket?.send(.string("{\"type\":\"heartbeat\",\"from\":\"hid-live-source\"}")) { _ in }
-    print("hid-live-source websocket connecting")
+  }
+
+  func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didCloseWith closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
+    print("WebSocket closed. Reconnecting in 2s...")
+    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+      self.connectWebSocket()
+    }
   }
 
   func handle(value: IOHIDValue) {
@@ -70,19 +79,7 @@ final class HIDLiveSource: NSObject, URLSessionWebSocketDelegate {
     if usagePage == 0x09 {
       let index = Int(usage) - 1
       if index >= 0 && index < buttons.count {
-        let previousValue = buttons[index] // Store previous value for comparison
-    let newValue = intValue == 0 ? 0.0 : 1.0
-    buttons[index] = newValue
-
-    // --- Added Verbose Logging for ALL Buttons if state changes ---
-    if newValue != previousValue { // Log only when state changes
-        let pressedButtons = buttons.enumerated()
-            .filter { $0.element > 0.5 }
-            .map { String($0.offset) }
-            .joined(separator: ",")
-        print("DEBUG: Button states changed. Pressed: [\(pressedButtons)] (Raw \(index): \(newValue))")
-    }
-    // --- End Added Verbose Logging ---
+        buttons[index] = intValue == 0 ? 0.0 : 1.0
       }
       return
     }
@@ -132,11 +129,12 @@ final class HIDLiveSource: NSObject, URLSessionWebSocketDelegate {
     let payload: [String: Any] = [
       "type": "browser-frame",
       "device": [
-        "id": "Rock Candy Wired Controller for Nintendo Switch (Native HID Source)",
+        "id": "Rock Candy Wired Controller for Nintendo Switch (BCR Native HID)",
         "index": 0,
         "mapping": "",
         "buttons": buttons.count,
-        "axes": axes.count
+        "axes": axes.count,
+        "connected": isDeviceConnected
       ],
       "sample": [
         "t": t,
@@ -160,14 +158,20 @@ let inputCallback: IOHIDValueCallback = { context, _, _, value in
   source.handle(value: value)
 }
 
-let deviceConnectedCallback: IOHIDDeviceCallback = { _, _, _, device in
+let deviceConnectedCallback: IOHIDDeviceCallback = { context, _, _, device in
+  guard let context else { return }
+  let source = Unmanaged<HIDLiveSource>.fromOpaque(context).takeUnretainedValue()
+  source.isDeviceConnected = true
   let name = IOHIDDeviceGetProperty(device, kIOHIDProductKey as CFString) as? String ?? "unknown"
-  print("hid-live-source device connected: \(name)")
+  print("HID Connected: \(name)")
 }
 
-let deviceDisconnectedCallback: IOHIDDeviceCallback = { _, _, _, device in
+let deviceDisconnectedCallback: IOHIDDeviceCallback = { context, _, _, device in
+  guard let context else { return }
+  let source = Unmanaged<HIDLiveSource>.fromOpaque(context).takeUnretainedValue()
+  source.isDeviceConnected = false
   let name = IOHIDDeviceGetProperty(device, kIOHIDProductKey as CFString) as? String ?? "unknown"
-  print("hid-live-source device disconnected: \(name)")
+  print("HID Disconnected: \(name)")
 }
 
 HIDLiveSource().start()

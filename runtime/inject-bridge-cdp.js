@@ -106,41 +106,17 @@ async function cdp(wsUrl, fn) {
 }
 
 async function main() {
-  const version = await (await fetch(`http://127.0.0.1:${debugPort}/json/version`)).json();
-  const browserWs = version.webSocketDebuggerUrl;
-
-  const targetsBefore = await (await fetch(`http://127.0.0.1:${debugPort}/json`)).json();
-  let created = "";
-  let existing = chooseTarget(targetsBefore);
-
-  if (reuseExisting || verifyOnly) {
-    created = existing?.id || "";
-  }
-
-  if (!created && !verifyOnly) {
-    created = await cdp(browserWs, async (send) => {
-      const result = await send("Target.createTarget", { url: "about:blank" });
-      return result.targetId;
-    });
-  }
-
-  let target;
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    const targets = await (await fetch(`http://127.0.0.1:${debugPort}/json`)).json();
-    target = created
-      ? targets.find((item) => item.id === created)
-      : chooseTarget(targets);
-    if (target?.webSocketDebuggerUrl) break;
-    await new Promise((resolve) => setTimeout(resolve, 250));
-  }
-
-  if (!target?.webSocketDebuggerUrl) {
-    throw new Error("No CDP target available");
+  const targets = await (await fetch(`http://127.0.0.1:${debugPort}/json`)).json();
+  const target = chooseTarget(targets);
+  if (!target) {
+    if (verifyOnly) {
+      console.log(JSON.stringify({ installed: false, error: "No xCloud page found" }, null, 2));
+      return;
+    }
+    throw new Error("No xCloud page found in Chrome. Is it open?");
   }
 
   await cdp(target.webSocketDebuggerUrl, async (send) => {
-    await send("Page.enable");
-    await send("Runtime.enable");
     if (bringToFront) {
       await send("Page.bringToFront");
     }
@@ -148,40 +124,25 @@ async function main() {
       const result = await send("Runtime.evaluate", {
         expression: `(async () => {
           const snapshot = () => ({
-            installed: window.__xboxCloudGamepadBridgeInstalled === true,
-            version: window.__xboxCloudGamepadBridgeVersion || null,
-            url: location.href,
-            debug: typeof window.__xboxCloudGamepadBridgeDebug === "function" ? window.__xboxCloudGamepadBridgeDebug() : null,
-            pads: Array.from(navigator.getGamepads()).filter(Boolean).map((g) => ({
+            installed: typeof window.BlackMambaBridge !== "undefined",
+            debug: {
+              connected: window.BlackMambaBridge?.connected || false,
+              hasFrame: !!window.BlackMambaBridge?.lastFrame,
+              staleMs: window.BlackMambaBridge?.lastFrame ? Date.now() - window.BlackMambaBridge.lastFrame.t : -1,
+              framesReceived: window.BlackMambaBridge?.framesReceived || 0
+            },
+            pads: (navigator.getGamepads ? Array.from(navigator.getGamepads()) : []).filter(Boolean).map(g => ({
               id: g.id,
               mapping: g.mapping,
-              buttons: g.buttons.length,
               axes: g.axes.length,
-              lx: Number(g.axes[0] || 0).toFixed(3),
-              ly: Number(g.axes[1] || 0).toFixed(3),
-              rx: Number(g.axes[2] || 0).toFixed(3),
-              ry: Number(g.axes[3] || 0).toFixed(3),
-              b0: g.buttons[0]?.value || 0,
-              b1: g.buttons[1]?.value || 0,
-              lb: g.buttons[4]?.value || 0,
-              rb: g.buttons[5]?.value || 0,
-              lt: g.buttons[6]?.value || 0,
-              rt: g.buttons[7]?.value || 0,
-              back: g.buttons[8]?.value || 0,
-              start: g.buttons[9]?.value || 0,
-              l3: g.buttons[10]?.value || 0,
-              r3: g.buttons[11]?.value || 0,
-              guide: g.buttons[16]?.value || 0,
-              dpadUp: g.buttons[12]?.value || 0,
-              dpadDown: g.buttons[13]?.value || 0,
-              dpadLeft: g.buttons[14]?.value || 0,
-              dpadRight: g.buttons[15]?.value || 0
+              buttons: g.buttons.length
             }))
           });
-          for (let i = 0; i < 20; i += 1) {
-            const value = snapshot();
-            if (value.pads.length) return value;
-            await new Promise((resolve) => setTimeout(resolve, 250));
+          // Wait up to 5s for at least one frame if bridge is installed
+          for (let i = 0; i < 20; i++) {
+            const v = snapshot();
+            if (v.installed && v.debug.hasFrame) return v;
+            await new Promise(r => setTimeout(r, 250));
           }
           return snapshot();
         })()`,
@@ -197,9 +158,6 @@ async function main() {
     }
     console.log(`Injected frames: ${injectedFrames}`);
   });
-
-  console.log(`Injected bridge ${reuseExisting ? "into current Xbox tab" : `and opened: ${targetUrl}`}`);
-  console.log(`Debug port: ${debugPort}`);
 }
 
 main().catch((error) => {

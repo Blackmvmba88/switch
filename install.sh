@@ -15,6 +15,7 @@ echo "== installing runtime agents =="
 "${ROOT}/install-hid-live-source-agent.sh"
 AUTO_OPEN_XCLOUD=0 "${ROOT}/install-xcloud-bridge-agent.sh" || true
 "${ROOT}/install-control-room-agent.sh"
+"${ROOT}/install-watchdog-agent.sh"
 
 echo
 echo "== validating =="

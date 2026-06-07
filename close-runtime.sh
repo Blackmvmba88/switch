@@ -37,6 +37,7 @@ kill_matching() {
 
 echo "== cerrando BlackMamba game runtime =="
 
+stop_agent "com.blackmamba.watchdog"
 stop_agent "com.blackmamba.xcloud-bridge"
 stop_agent "com.blackmamba.hid-live-source"
 stop_agent "com.blackmamba.live-monitor"
@@ -46,6 +47,7 @@ kill_pid_file "${ROOT}/logs/hid-live-source.pid"
 kill_pid_file "${APP_ROOT}/logs/hid-live-source.pid"
 
 kill_matching "xcloud-bridge-agent.js"
+kill_matching "health-watchdog.js"
 kill_matching "network-game-mode.js"
 kill_matching "live-monitor.js --port 8137|runtime/live-monitor.js"
 kill_matching "hid-live-source-agent.sh|[.]tmp-runtime-test/hid-live-source|BlackMambaInput/[.]tmp-runtime-test/hid-live-source"

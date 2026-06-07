@@ -25,7 +25,7 @@ let session = null;
 function writeStatus(status) {
   fs.mkdirSync(path.dirname(statusPath), { recursive: true });
   fs.writeFileSync(statusPath, JSON.stringify({
-    protocol: "blackmamba.xcloud.bridge.agent.v0",
+    protocol: "blackmamba.xcloud.bridge.agent.v1",
     updatedAt: new Date().toISOString(),
     debugPort,
     targetUrl,
@@ -59,19 +59,6 @@ function readJson(file, fallback) {
   }
 }
 
-function writeJson(file, value) {
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, JSON.stringify(value, null, 2) + "\n");
-}
-
-function durationText(ms) {
-  const minutes = Math.round(ms / 60000);
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  const rest = minutes % 60;
-  return rest ? `${hours}h ${rest}m` : `${hours}h`;
-}
-
 async function frontmostApp() {
   const script = 'tell application "System Events" to get name of first application process whose frontmost is true';
   const result = await run("/usr/bin/osascript", ["-e", script], { timeout: 3000 });
@@ -97,78 +84,52 @@ function appendSession(record) {
   memory.updatedAt = new Date().toISOString();
   memory.summary = {
     count: durations.length,
-    averageMs,
-    average: averageMs ? durationText(averageMs) : "0m",
-    lastDurationMs: record.durationMs,
-    lastDuration: durationText(record.durationMs)
+    averageMs
   };
-  writeJson(sessionPath, memory);
+  fs.mkdirSync(path.dirname(sessionPath), { recursive: true });
+  fs.writeFileSync(sessionPath, JSON.stringify(memory, null, 2) + "\n");
 }
 
 function startOrTouchSession(reason) {
-  const now = Date.now();
   if (!session) {
-    session = {
-      startedAtMs: now,
-      startedAt: new Date(now).toISOString(),
-      lastSeenAtMs: now,
-      lastSeenAt: new Date(now).toISOString(),
-      reason
-    };
+    session = { startedAt: Date.now(), lastSeenAt: Date.now(), reason };
   } else {
-    session.lastSeenAtMs = now;
-    session.lastSeenAt = new Date(now).toISOString();
+    session.lastSeenAt = Date.now();
   }
 }
 
-function sessionSnapshot(extra = {}) {
-  if (!session) return { activeSession: false, ...extra };
-  const now = Date.now();
+function sessionSnapshot() {
+  if (!session) return { session: null };
+  const durationMs = Date.now() - session.startedAt;
   return {
-    activeSession: true,
-    sessionStartedAt: session.startedAt,
-    sessionLastSeenAt: session.lastSeenAt,
-    sessionDurationMs: now - session.startedAtMs,
-    sessionDuration: durationText(now - session.startedAtMs),
-    sessionMissingMs: now - session.lastSeenAtMs,
-    minPlayMs,
-    awayGraceMs,
-    ...extra
+    session: {
+      durationMs,
+      active: true
+    }
   };
 }
 
 async function maybeAutoShutdown(reason) {
-  if (!session || closing) return false;
+  if (!session) return false;
   const now = Date.now();
-  const durationMs = now - session.startedAtMs;
-  const missingMs = now - session.lastSeenAtMs;
-  if (durationMs < minPlayMs || missingMs < awayGraceMs) return false;
+  const playDurationMs = now - session.startedAt;
+  const idleMs = now - session.lastSeenAt;
+
+  if (playDurationMs < minPlayMs) return false;
+  if (idleMs < awayGraceMs) return false;
 
   const app = await frontmostApp();
-  const awayFromChrome = app && !/chrome/i.test(app);
-  if (!awayFromChrome) return false;
+  if (app === "Google Chrome") return false;
 
+  if (closing) return true;
   closing = true;
-  const record = {
-    startedAt: session.startedAt,
-    endedAt: new Date(now).toISOString(),
-    durationMs,
-    duration: durationText(durationMs),
-    missingMs,
-    closeReason: reason,
-    frontmostApp: app
-  };
-  appendSession(record);
-  writeStatus({
-    state: "auto_shutdown",
-    reason,
-    frontmostApp: app,
-    session: record,
-    memory: loadSessionMemory().summary
+  writeStatus({ state: "auto_shutdown", reason, durationMs: playDurationMs, idleMs, app });
+  appendSession({
+    at: new Date().toISOString(),
+    durationMs: playDurationMs,
+    reason
   });
-  if (fs.existsSync(closeScript)) {
-    await run("/bin/bash", [closeScript], { timeout: 20000 });
-  }
+  await run("/usr/bin/bash", [closeScript]);
   session = null;
   closing = false;
   return true;
@@ -180,20 +141,17 @@ async function fetchJson(url) {
   return response.json();
 }
 
-function isPlayTarget(target) {
-  return target.type === "page"
-    && /xbox\.com/.test(target.url || "")
-    && /\/play(\/|$|\?)/.test(target.url || "")
-    && !/\/auth\//.test(target.url || "");
-}
-
 async function getTargets() {
   return fetchJson(`http://127.0.0.1:${debugPort}/json`);
 }
 
+function isPlayTarget(item) {
+  return /xbox\.com/.test(item.url || "") && /play/.test(item.url || "");
+}
+
 async function launchChrome() {
   const now = Date.now();
-  if (now - lastLaunchAt < 15000) return;
+  if (now - lastLaunchAt < 20000) return;
   lastLaunchAt = now;
   fs.mkdirSync(profileDir, { recursive: true });
   await run("open", [
@@ -207,6 +165,17 @@ async function launchChrome() {
   ], { timeout: 10000 });
 }
 
+async function verifyBridge() {
+  const env = { DEBUG_PORT: String(debugPort), VERIFY_ONLY: "1" };
+  const result = await run(process.execPath, [injectScript], { env, timeout: 10000 });
+  if (!result.ok) return { installed: false, error: result.stderr };
+  try {
+    return JSON.parse(result.stdout);
+  } catch (_) {
+    return { installed: false, error: "invalid verify output" };
+  }
+}
+
 async function inject({ reuse }) {
   if (injecting) return { ok: true, skipped: true };
   injecting = true;
@@ -216,7 +185,7 @@ async function inject({ reuse }) {
       URL: targetUrl,
       ...(reuse ? { REUSE_XCLOUD: "1" } : {})
     };
-    return await run(process.execPath, [injectScript, String(debugPort)], { env, timeout: 20000 });
+    return await run(process.execPath, [injectScript], { env, timeout: 20000 });
   } finally {
     injecting = false;
   }
@@ -239,15 +208,21 @@ async function tick() {
   const targets = await getTargets();
   const playTarget = targets.find(isPlayTarget);
   if (playTarget) startOrTouchSession("xcloud_play_target_seen");
+
   if (!playTarget && !autoOpenXcloud) {
     if (await maybeAutoShutdown("xcloud_tab_closed_after_play")) return;
     writeStatus({ state: "idle_no_xcloud_tab", cdp: "available", playTarget: false, targets: targets.length, ...sessionSnapshot() });
     return;
   }
+
   if (!playTarget && await maybeAutoShutdown("xcloud_tab_closed_after_play")) return;
+
+  const health = await verifyBridge();
   const now = Date.now();
-  if (now - lastInjectAt < intervalMs) {
-    writeStatus({ state: "waiting", cdp: "available", playTarget: Boolean(playTarget), targets: targets.length, ...sessionSnapshot() });
+  const needsReinject = !health.installed || (health.debug && health.debug.framesReceived === 0 && now - lastInjectAt > 15000);
+
+  if (!needsReinject && now - lastInjectAt < 30000) {
+    writeStatus({ state: "healthy", cdp: "available", playTarget: Boolean(playTarget), bridge: health, ...sessionSnapshot() });
     return;
   }
 
@@ -257,7 +232,7 @@ async function tick() {
     state: result.ok ? "injected" : "inject_failed",
     cdp: "available",
     playTarget: Boolean(playTarget),
-    targets: targets.length,
+    bridge: health,
     stdout: result.stdout.trim().slice(-1200),
     stderr: result.stderr.trim().slice(-1200),
     ...sessionSnapshot()

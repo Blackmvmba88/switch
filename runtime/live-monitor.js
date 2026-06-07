@@ -81,6 +81,8 @@ function decodeWsFrames(buffer) {
       messages.push({ close: true });
     } else if (opcode === 0x1) {
       messages.push({ text: payload.toString("utf8") });
+    } else if (opcode === 0x9) {
+      messages.push({ ping: true, payload });
     }
 
     offset = frameEnd;
@@ -102,115 +104,85 @@ function main() {
   const host = argValue("--host", "127.0.0.1");
   const port = Number(argValue("--port", "8137"));
   const profilePath = argValue("--profile", DEFAULT_PROFILE);
-  const logPath = argValue("--log", path.join(ROOT, "logs", "live-events.jsonl"));
-  const statusPath = argValue("--status", path.join(ROOT, "reports", "live-status.json"));
-  const verbose = hasFlag("--verbose");
-  const profile = readJson(profilePath);
-  let previousFrame = null;
-  let lastBrowserFrameAt = 0;
-  let frameCount = 0;
-  let clientCount = 0;
-  const bootedAt = new Date().toISOString();
+  const logPath = argValue("--log", path.join(ROOT, "logs/live-events.jsonl"));
+  const statusPath = argValue("--status", path.join(ROOT, "reports/live-status.json"));
+
+  console.log(`BlackMamba Live Monitor v1.1 starting`);
+  console.log(`Profile: ${profilePath}`);
+
+  let profile;
+  try {
+    profile = readJson(profilePath);
+  } catch (error) {
+    console.error(`FATAL: Failed to read profile: ${error.message}`);
+    process.exit(1);
+  }
 
   ensureDir(logPath);
   ensureDir(statusPath);
 
-  function safeAppend(file, text) {
-    try {
-      fs.appendFileSync(file, text);
-    } catch (error) {
-      if (!["ENOSPC", "EFBIG"].includes(error.code)) throw error;
-    }
-  }
-
-  function safeWrite(file, text) {
-    try {
-      fs.writeFileSync(file, text);
-    } catch (error) {
-      if (!["ENOSPC", "EFBIG"].includes(error.code)) throw error;
-    }
-  }
-
+  const logStream = fs.createWriteStream(logPath, { flags: "a" });
   function writeEvent(event) {
-    if (event.kind === "browser-frame" && !event.events?.length && frameCount % 300 !== 0) {
-      return;
-    }
-    const row = { at: new Date().toISOString(), ...event };
-    safeAppend(logPath, `${JSON.stringify(row)}\n`);
-    if (verbose && (event.kind !== "browser-frame" || event.events?.length)) {
-      console.log(JSON.stringify(row));
-    }
+    const line = JSON.stringify({ t: Date.now(), ...event }) + "\n";
+    logStream.write(line);
   }
 
-  function writeStatus(extra = {}) {
-    const now = Date.now();
-    const staleMs = lastBrowserFrameAt ? now - lastBrowserFrameAt : null;
-    const status = {
-      protocol: "blackmamba.live.status.v0",
-      bootedAt,
-      updatedAt: new Date().toISOString(),
-      profilePath,
-      device: profile.device,
-      clients: clientCount,
-      frameCount,
-      lastBrowserFrameAt: lastBrowserFrameAt ? new Date(lastBrowserFrameAt).toISOString() : null,
-      browserPolling: staleMs !== null && staleMs < 1500 ? "PASS" : "STALE_OR_EMPTY",
-      staleMs,
-      ...extra
-    };
-    safeWrite(statusPath, `${JSON.stringify(status, null, 2)}\n`);
-  }
-
-  const server = http.createServer((req, res) => {
-    if (req.url === "/status") {
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end(fs.existsSync(statusPath) ? fs.readFileSync(statusPath) : "{}");
-      return;
-    }
-    res.writeHead(200, { "content-type": "text/plain" });
-    res.end("BlackMamba live monitor: connect WebSocket at /live\n");
-  });
-
+  let clientCount = 0;
+  let frameCount = 0;
+  let lastBrowserFrameAt = 0;
+  let previousFrame = null;
   const clients = new Set();
 
-  function cleanupClient(client, reason = "closed") {
-    if (!clients.has(client)) return;
-    clients.delete(client);
+  function writeStatus(extra = {}) {
+    try {
+      const stats = {
+        protocol: "blackmamba.live.v1",
+        updatedAt: new Date().toISOString(),
+        clients: clients.size,
+        frameCount,
+        lastBrowserFrameMs: lastBrowserFrameAt ? Date.now() - lastBrowserFrameAt : -1,
+        ...extra
+      };
+      fs.writeFileSync(statusPath, JSON.stringify(stats, null, 2) + "\n");
+    } catch (_) {}
+  }
+
+  function broadcast(msg) {
+    const data = encodeWsFrame(msg);
+    for (const client of clients) {
+      try {
+        client.write(data);
+      } catch (_) {
+        clients.delete(client);
+      }
+    }
+  }
+
+  function cleanupClient(socket, reason) {
+    clients.delete(socket);
     clientCount = clients.size;
     writeEvent({ kind: "browser-disconnected", reason, clients: clientCount });
     writeStatus();
   }
 
-  function broadcast(message) {
-    const frame = encodeWsFrame(message);
-    for (const client of clients) {
-      try {
-        const ok = client.write(frame);
-        if (!ok && client.writableLength > MAX_PENDING_BYTES) {
-          client.destroy(new Error("slow websocket client"));
-          cleanupClient(client, "slow-client");
-        }
-      } catch (err) {
-        cleanupClient(client, "write-error");
-      }
-    }
-  }
-
-  server.on("upgrade", (req, socket) => {
-    if (req.url !== "/live") {
-      socket.destroy();
+  const server = http.createServer((req, res) => {
+    if (req.url === "/api/status") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({
+        ok: true,
+        clients: clients.size,
+        frameCount,
+        lastBrowserFrameMs: lastBrowserFrameAt ? Date.now() - lastBrowserFrameAt : -1
+      }));
       return;
     }
+    res.writeHead(404);
+    res.end();
+  });
 
+  server.on("upgrade", (req, socket, head) => {
     const key = req.headers["sec-websocket-key"];
-    if (!key) {
-      socket.destroy();
-      return;
-    }
-
-    const accept = crypto.createHash("sha1")
-      .update(`${key}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`)
-      .digest("base64");
+    const accept = crypto.createHash("sha1").update(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").digest("base64");
 
     socket.write([
       "HTTP/1.1 101 Switching Protocols",
@@ -232,7 +204,7 @@ function main() {
     clientCount = clients.size;
     writeEvent({ kind: "browser-connected", clients: clientCount });
     writeStatus();
-    socket.write(encodeWsFrame({ type: "hello", protocol: "blackmamba.live.v0", profile: profile.device }));
+    socket.write(encodeWsFrame({ type: "hello", protocol: "blackmamba.live.v1", profile: profile.device }));
 
     let pending = Buffer.alloc(0);
     socket.on("data", (chunk) => {
@@ -252,6 +224,10 @@ function main() {
         if (item.close) {
           socket.end();
           return;
+        }
+        if (item.ping) {
+          socket.write(Buffer.concat([Buffer.from([0x8a, item.payload.length]), item.payload]));
+          continue;
         }
 
         let message;
@@ -279,7 +255,6 @@ function main() {
           });
           writeStatus({ lastDevice: message.device });
           
-          // Broadcast the full semantic state and events to all clients
           broadcast({ 
             type: "semantic-frame", 
             frame: publicFrame, 
@@ -306,13 +281,15 @@ function main() {
     });
   });
 
-  setInterval(() => writeStatus(), 1000).unref();
+  setInterval(() => {
+    writeStatus();
+    broadcast({ type: "heartbeat", t: Date.now() });
+  }, 5000).unref();
+
   server.listen(port, host, () => {
     writeEvent({ kind: "live-monitor-started", host, port, profilePath, logPath, statusPath });
     writeStatus();
     console.log(`Live monitor: ws://${host}:${port}/live`);
-    console.log(`Status: ${statusPath}`);
-    console.log(`Events: ${logPath}`);
   });
 }
 

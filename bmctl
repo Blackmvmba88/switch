@@ -103,6 +103,10 @@ kick_agent() {
 }
 
 case "${1:-help}" in
+  watchdog)
+    node "${ROOT}/runtime/health-watchdog.js"
+    ;;
+
   play)
     "${ROOT}/play-xcloud-cdp-bridge.sh"
     ;;
