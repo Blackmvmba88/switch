@@ -31,26 +31,23 @@ npm install
 ./install.sh
 ```
 
+### Playing (Cross-Platform)
+
+BCR now supports both **Google Chrome** and **ChatGPT Atlas** for an optimal cloud gaming experience.
+
+- **Play in Atlas (Recommended):** Best for performance and native feel.
+  ```bash
+  ./bmctl play
+  ```
+- **Play in Chrome (Advanced):** Uses CDP (Chrome DevTools Protocol) for high-fidelity injection.
+  ```bash
+  ./bmctl wake
+  ```
+
 Open the local app:
 
 ```bash
 ./bmctl app
-```
-
-Play in Atlas, recommended:
-
-```bash
-./bmctl atlas
-./bmctl play-atlas
-./bmctl atlas-jugar
-./bmctl go
-./bmctl entrar
-```
-
-Run xCloud in game mode:
-
-```bash
-./bmctl game-on
 ```
 
 Game mode also starts the network game monitor. It keeps the Mac awake with
@@ -146,25 +143,13 @@ Control Room runs at `http://127.0.0.1:8147` and centralizes:
 - Doctor, status, RAM, recycle, logs
 - Safe close button for game/runtime processes
 
-### Play in Atlas
+### Play in Atlas & Chrome
 
-Use the Atlas play command and the Control Room Atlas panel:
+The Control Room and `bmctl` now provide a solid base for playing on both Atlas and Chrome:
 
-```bash
-./bmctl atlas-jugar
-./bmctl atlas-status
-```
-
-What these do:
-
-- `./bmctl atlas-jugar` opens Atlas and jumps into play
-- `./bmctl atlas` is the shortest direct Atlas command
-- `./bmctl atlas-open` is a clear alias for opening Atlas
-- `./bmctl atlas-run` is a clear alias for starting Atlas and jumping in
-- `./bmctl atlas-game` is a clear alias for opening Atlas and playing
-- `./bmctl go`, `./bmctl entrar`, and `./bmctl play-atlas` are shorter aliases for the same Atlas flow
-- `./bmctl play` now tries Atlas first and only falls back to xCloud if Atlas is missing
-- `./bmctl atlas-status` reports whether Atlas is installed and the target URL
+- `./bmctl play` opens Atlas if preferred (recommended).
+- `./bmctl wake` starts Chrome with the CDP bridge.
+- `./bmctl status` provides a live view of the HID source and the bridge.
 
 The Control Room also exposes the same state over API:
 
