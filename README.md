@@ -1,77 +1,109 @@
 # BlackMamba Cybernetic Runtime (BCR) 🐍🔥
 
-The BlackMamba Cybernetic Runtime is a high-performance, semantic-first input translation layer designed to bridge the gap between human hardware and machine intent on macOS.
+Turn any supported HID controller into a semantic Xbox-compatible input system for cloud gaming on macOS.
 
-> "It's not a mapper. It's a cybernetic interoperability platform."
+> It is not just a mapper. It is a cybernetic interoperability platform.
+
+BCR translates physical controller intent into a stable, observable, game-ready input layer. It was built first for Nintendo Switch-style controllers on macOS and Xbox Cloud Gaming, with a focus on fast setup, durable profiles, telemetry, and safe runtime control.
+
+## Status
+
+| Area | Status |
+| --- | --- |
+| macOS Apple Silicon | Beta |
+| Chrome / Chromium xCloud bridge | Beta |
+| Rock Candy / Switch-style HID mapping | Working |
+| Control Room local UI | Working |
+| Fortnite physical Xbox layout | Working |
+| Native macOS virtual HID driver | Planned |
+| Steam / native app emulation | Planned |
+
+## What It Does
+
+- Converts Switch-style physical layouts into Xbox-compatible semantic output.
+- Runs Xbox Cloud Gaming with a controlled Chrome CDP bridge.
+- Provides a local Control Room for runtime status, verification, logs, profiles, and safe shutdown.
+- Tracks live input, network state, latency, jitter, packet loss, and session behavior.
+- Preserves durable controller profiles for repeatable game layouts.
 
 ## Conceptual Pipeline
 
 ```text
-USB / HID device
--> macOS IOHID + browser Gamepad API
--> Semantic Translation Layer (BCR Bus)
--> Telemetry & Observability
--> High-Fidelity Injection (CDP Bridge)
--> xCloud / Target Application
+┌──────────────────────┐
+│ USB / HID Controller │
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│ macOS IOHID Source   │
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│ BCR Semantic Bus     │
+│ profiles + mappings  │
+└──────────┬───────────┘
+           │
+           ├──► Telemetry / Observability
+           │
+           ▼
+┌──────────────────────┐
+│ CDP Gamepad Bridge   │
+└──────────┬───────────┘
+           ▼
+┌──────────────────────┐
+│ xCloud / Game Target │
+└──────────────────────┘
 ```
-
-## Architecture
-
-BCR is built on several key pillars:
-- **[Vision](VISION.md):** Our philosophy of human-machine interaction.
-- **[Roadmap](ROADMAP.md):** The phased evolution from HID bridge to adaptive systems.
-- **[Documentation](docs/architecture/):** Detailed architectural breakdowns.
 
 ## Quick Start
 
-### Installation
+### 1. Install
 
 ```bash
 npm install
 ./install.sh
 ```
 
-Open the local app:
+### 2. Open Control Room
 
 ```bash
 ./bmctl app
 ```
 
-Run xCloud in game mode:
+Control Room runs locally at:
+
+```text
+http://127.0.0.1:8147
+```
+
+### 3. Start xCloud Game Mode
 
 ```bash
 ./bmctl game-on
 ```
 
-Game mode also starts the network game monitor. It keeps the Mac awake with
-`caffeinate`, flushes the local DNS cache once, and tracks gateway/internet/xCloud
-latency, jitter, and packet loss. It does not make destructive network changes.
+Game mode starts the runtime, keeps the Mac awake with `caffeinate`, flushes local DNS once, and starts the network game monitor. It tracks gateway, internet, and xCloud latency, jitter, and packet loss. It does not make destructive network changes.
 
-When playing over Ethernet, prefer wired mode:
+### 4. Prefer Wired Mode When Available
 
 ```bash
 ./bmctl net-wired
 ```
 
-That turns Wi-Fi off for the session, refreshes local DNS, restarts the network
-monitor, and confirms the default route is using the Ethernet interface.
+Wired mode turns Wi-Fi off for the session, refreshes local DNS, restarts the network monitor, and confirms the default route is using Ethernet.
 
-Verify the virtual Xbox pad:
+### 5. Verify the Virtual Xbox Pad
 
 ```bash
 ./bmctl verify
 ```
 
-Close the game runtime when done:
+### 6. Close the Runtime
 
 ```bash
 ./bmctl close
 ```
-
-When game mode is installed, the xCloud agent also learns session length. It is
-conservative: it only auto-closes after a real play session, after the xCloud
-window/tab disappears, and after another app is frontmost for a grace period.
-The default minimum session before auto-shutdown is 30 minutes.
 
 Close everything, including Control Room:
 
@@ -94,8 +126,7 @@ For Fortnite, use Xbox physical button positions:
 ./bmctl game-on
 ```
 
-This intentionally ignores the letters printed on the Switch/Rock Candy shell
-and maps by where the button sits:
+This intentionally ignores the letters printed on the Switch/Rock Candy shell and maps by where the button sits:
 
 | Physical button | Printed on Switch pad | Xbox meaning |
 | --- | --- | --- |
@@ -104,8 +135,7 @@ and maps by where the button sits:
 | Left | Y | X |
 | Top | X | Y |
 
-The D-pad is also part of this profile. The Rock Candy reports it as one
-quantized hat axis, not four normal buttons:
+The D-pad is also part of this profile. The Rock Candy reports it as one quantized hat axis, not four normal buttons:
 
 | D-pad direction | Raw source | Xbox button |
 | --- | --- | --- |
@@ -126,7 +156,7 @@ If xCloud is already open:
 ./bmctl app
 ```
 
-Control Room runs at `http://127.0.0.1:8147` and centralizes:
+Control Room centralizes:
 
 - Wake xCloud
 - Verify virtual Xbox pad
@@ -141,6 +171,24 @@ The app is served by LaunchAgent:
 ```text
 com.blackmamba.control-room
 ```
+
+## Why This Exists
+
+### Cloud Gaming
+
+Use a non-Xbox controller with Xbox Cloud Gaming while preserving Xbox physical layout expectations.
+
+### Broken or Weird Controllers
+
+Remap damaged, mislabeled, or non-standard inputs into stable semantic actions.
+
+### Input Research
+
+Capture HID behavior, normalize profiles, replay traces, and compare controller behavior over time.
+
+### Accessibility Experiments
+
+Build custom mappings where physical input does not have to match game assumptions.
 
 ## What Is What
 
@@ -193,11 +241,9 @@ Close the runtime and clean safe repo-local caches:
 ./bmctl repo-clean
 ```
 
-`repo-clean` removes only local runtime artifacts such as repo logs, temporary
-build cache, and scratch Chrome profile. It does not delete source code,
-profiles, fixtures, or the active xCloud CDP profile.
+`repo-clean` removes only local runtime artifacts such as repo logs, temporary build cache, and scratch Chrome profile. It does not delete source code, profiles, fixtures, or the active xCloud CDP profile.
 
-## Beta Release
+## Beta Release Flow
 
 Preflight:
 
@@ -205,52 +251,54 @@ Preflight:
 npm run game-on
 ```
 
-### Control Room (UI)
+Control Room:
 
 ```bash
 bmctl app
 ```
 
-### Diagnostics
+Diagnostics:
 
 ```bash
 npm run status
 npm run preflight
 ```
 
-## Laboratory & Tools
-
-BCR includes a suite of laboratory tools for input research:
-- **Live Monitor:** Real-time WebSocket event stream.
-- **Replay Trace:** Offline validation of input sequences.
-- **Semantic Diff:** Analytical comparison of controller profiles.
-- **Visualizer:** (Work in Progress) Interactive telemetry dashboard.
-
-## Development
-
-### Testing
+Tests:
 
 ```bash
 npm test
 ```
 
-### Project Structure
+## Laboratory & Tools
 
-- `runtime/`: Core translators, live monitor, CDP injector.
-- `xbox-gamepad-bridge/`: Browser Gamepad API bridge.
-- `profiles/`: Durable semantic controller profiles.
-- `app/`: Local Control Room UI.
-- `docs/`: Architectural and conceptual documentation.
+BCR includes a suite of laboratory tools for input research:
 
-## License
+- **Live Monitor:** Real-time WebSocket event stream.
+- **Replay Trace:** Offline validation of input sequences.
+- **Semantic Diff:** Analytical comparison of controller profiles.
+- **Visualizer:** Work-in-progress interactive telemetry dashboard.
 
-MIT - See [LICENSE](LICENSE)
+## Visual Proof Checklist
+
+Add these files under `docs/media/` as the project matures:
+
+- `control-room.gif` — local UI booting and showing live state.
+- `verify-pad.gif` — virtual Xbox pad verification.
+- `fortnite-map.gif` — physical Switch layout mapped into Xbox meaning.
+- `live-monitor.gif` — buttons, axes, and telemetry moving in real time.
+
+Then embed them near the top of this README.
 
 ## Documentation Index
 
 - [Vision & Philosophy](VISION.md)
+- [Roadmap](ROADMAP.md)
 - [Command Reference](docs/commands.md)
 - [Architecture Overview](docs/architecture/README.md)
 - [Semantic Bus & Mappings](docs/semantic-bus/README.md)
 - [Telemetry & Observability](docs/telemetry/README.md)
-- [Roadmap](ROADMAP.md)
+
+## License
+
+MIT - See [LICENSE](LICENSE)
