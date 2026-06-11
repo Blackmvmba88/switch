@@ -1,0 +1,23 @@
+{
+  "id": "minimal-lab-gamepad",
+  "name": "Gemini Minimal Lab Pad",
+  "vendorId": "0xFEED",
+  "productId": "0xBEEF",
+  "descriptorHex": "05010905A101A100050919012901150025019501750181029507810305010930150026FF00750895018102C0C0",
+  "reportLength": 2,
+  "mapping": {
+    "A": {
+      "type": "button",
+      "byteOffset": 0,
+      "bitOffset": 0,
+      "bitLength": 1
+    },
+    "LX": {
+      "type": "axis",
+      "byteOffset": 1,
+      "bitLength": 8,
+      "logicalMin": 0,
+      "logicalMax": 255
+    }
+  }
+}

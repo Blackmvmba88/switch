@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BlackMamba Live Visualizer</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+
+    :root {
+      --neon-pink: #ff00ff;
+      --neon-blue: #00ffff;
+      --neon-green: #39ff14;
+      --bg-dark: #050505;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: white;
+      font-family: 'Orbitron', sans-serif;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    .visualizer-container {
+      position: relative;
+      width: 800px;
+      height: 600px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .controller-svg {
+      width: 100%;
+      height: 100%;
+      filter: drop-shadow(0 0 20px rgba(0, 255, 255, 0.3));
+    }
+
+    .input-overlay {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none;
+    }
+
+    .glow-button {
+      position: absolute;
+      width: 45px;
+      height: 45px;
+      border-radius: 50%;
+      background: transparent;
+      box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.1);
+      transition: all 0.1s;
+      opacity: 0.2;
+    }
+
+    .glow-button.active {
+      opacity: 1;
+      box-shadow: 0 0 25px var(--btn-color), inset 0 0 15px var(--btn-color);
+      background: var(--btn-color);
+    }
+
+    /* Positions based on standard Xbox layout */
+    .btn-a { bottom: 185px; right: 235px; --btn-color: var(--neon-green); }
+    .btn-b { bottom: 235px; right: 185px; --btn-color: #ff3131; }
+    .btn-x { bottom: 235px; right: 285px; --btn-color: var(--neon-blue); }
+    .btn-y { bottom: 285px; right: 235px; --btn-color: #ffde33; }
+
+    .stick {
+      position: absolute;
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      border: 2px solid rgba(0, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .stick-cap {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #444, #111);
+      border: 1px solid var(--neon-blue);
+      box-shadow: 0 0 10px var(--neon-blue);
+      left: 20px; top: 20px;
+      transition: transform 0.05s linear;
+    }
+
+    .ls-pos { top: 210px; left: 160px; }
+    .rs-pos { bottom: 180px; right: 310px; }
+
+    .dpad-v {
+      position: absolute;
+      bottom: 185px; left: 260px;
+      width: 100px; height: 100px;
+    }
+
+    .dpad-btn {
+        position: absolute;
+        background: var(--neon-pink);
+        opacity: 0;
+        transition: opacity 0.1s;
+        box-shadow: 0 0 15px var(--neon-pink);
+    }
+    .dpad-up { top: 0; left: 35px; width: 30px; height: 35px; }
+    .dpad-down { bottom: 0; left: 35px; width: 30px; height: 35px; }
+    .dpad-left { left: 0; top: 35px; width: 35px; height: 30px; }
+    .dpad-right { right: 0; top: 35px; width: 35px; height: 30px; }
+    .dpad-btn.active { opacity: 0.8; }
+
+    header {
+      position: fixed;
+      top: 20px;
+      text-align: center;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 2em;
+      color: var(--neon-pink);
+      text-shadow: 0 0 10px var(--neon-pink);
+      letter-spacing: 10px;
+    }
+
+    .status-bar {
+        position: fixed;
+        bottom: 20px;
+        font-family: monospace;
+        color: var(--neon-blue);
+        font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>BLACKMAMBA LIVE</h1>
+    <div style="font-size: 0.7em; letter-spacing: 3px; color: #888;">CONTROLLER TELEMETRY • V1.0</div>
+  </header>
+
+  <div class="visualizer-container">
+    <!-- Simplified Xbox Controller Shape -->
+    <svg class="controller-svg" viewBox="0 0 800 600">
+      <defs>
+        <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#111;stop-opacity:1" />
+          <stop offset="100%" style="stop-color:#050505;stop-opacity:1" />
+        </linearGradient>
+      </defs>
+      <path d="M200,150 Q100,150 100,300 L100,450 Q100,550 250,550 L550,550 Q700,550 700,450 L700,300 Q700,150 600,150 Z" fill="url(#grad1)" stroke="#222" stroke-width="5" />
+      <path d="M250,150 L550,150 Q600,150 600,200 L600,250 Q600,300 550,300 L250,300 Q200,300 200,250 L200,200 Q200,150 250,150 Z" fill="#080808" stroke="#333" />
+    </svg>
+
+    <div class="input-overlay">
+      <!-- Buttons -->
+      <div id="btn-0" class="glow-button btn-a"></div>
+      <div id="btn-1" class="glow-button btn-b"></div>
+      <div id="btn-2" class="glow-button btn-x"></div>
+      <div id="btn-3" class="glow-button btn-y"></div>
+
+      <!-- Sticks -->
+      <div class="stick ls-pos"><div id="ls-cap" class="stick-cap"></div></div>
+      <div class="stick rs-pos"><div id="rs-cap" class="stick-cap"></div></div>
+
+      <!-- DPad -->
+      <div class="dpad-v">
+        <div id="btn-12" class="dpad-btn dpad-up"></div>
+        <div id="btn-13" class="dpad-btn dpad-down"></div>
+        <div id="btn-14" class="dpad-btn dpad-left"></div>
+        <div id="btn-15" class="dpad-btn dpad-right"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="status-bar" id="status">
+    WAITING FOR CONTROLLER...
+  </div>
+
+  <script>
+    function update() {
+      const pads = navigator.getGamepads();
+      const pad = pads[0];
+      
+      if (!pad) {
+        document.getElementById('status').innerText = "DISCONNECTED";
+        requestAnimationFrame(update);
+        return;
+      }
+
+      document.getElementById('status').innerText = `ACTIVE: ${pad.id}`;
+
+      // Update Buttons (using standard mapping or custom if injected)
+      // For this visualizer, we use indices 0-16
+      for (let i = 0; i < 17; i++) {
+          const el = document.getElementById(`btn-${i}`);
+          if (el) {
+              const b = pad.buttons[i];
+              if (b && b.pressed) {
+                  el.classList.add('active');
+              } else {
+                  el.classList.remove('active');
+              }
+          }
+      }
+
+      // Update Sticks
+      const ls = document.getElementById('ls-cap');
+      const rs = document.getElementById('rs-cap');
+      
+      // We assume standard indices for display
+      const lx = pad.axes[0] || 0;
+      const ly = pad.axes[1] || 0;
+      const rx = pad.axes[2] || 0;
+      const ry = pad.axes[3] || 0;
+
+      ls.style.transform = `translate(${lx * 25}px, ${ly * 25}px)`;
+      rs.style.transform = `translate(${rx * 25}px, ${ry * 25}px)`;
+
+      requestAnimationFrame(update);
+    }
+
+    window.addEventListener("gamepadconnected", () => {
+      console.log("Visualizer ready.");
+    });
+
+    update();
+  </script>
+</body>
+</html>

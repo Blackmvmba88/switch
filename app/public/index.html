@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BlackMamba Control Room</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>BlackMamba Control Room</h1>
+      <p>Runtime local para xCloud, Fortnite y control Xbox virtual.</p>
+    </div>
+    <div class="header-stack">
+      <div class="status-pill atlas-badge" id="atlas-header-badge">Atlas</div>
+      <div class="atlas-menu" id="atlas-menu" hidden>
+        <button data-atlas-action="atlas-jugar" class="atlas-menu-item">Jugar</button>
+        <button data-atlas-action="atlas-status" class="atlas-menu-item">Estado</button>
+      </div>
+      <div class="status-pill" id="overall">Cargando</div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="panel atlas-panel">
+      <div class="panel-title">
+        <h2>Atlas</h2>
+        <span id="atlas-state">--</span>
+        <button id="atlas-refresh" class="ghost">API</button>
+      </div>
+      <div class="health-grid">
+        <div class="metric"><span>Installed</span><strong id="atlasInstalled">--</strong></div>
+        <div class="metric"><span>Target</span><strong id="atlasTarget">--</strong></div>
+        <div class="metric"><span>Browser</span><strong id="atlasBrowser">--</strong></div>
+        <div class="metric"><span>Bridge</span><strong id="atlasBridge">--</strong></div>
+      </div>
+      <div class="mapper-actions atlas-actions">
+        <button data-command="atlas-jugar" class="action primary">Jugar</button>
+        <button data-command="atlas-status" class="action">Estado</button>
+      </div>
+      <p class="mode-copy atlas-note" id="atlas-action">Atlas listo para jugar.</p>
+      <p class="mode-copy atlas-note">
+        Entra a xCloud desde Atlas y juega sin fricción.
+      </p>
+      <details class="atlas-details">
+        <summary>Checklist</summary>
+        <ol class="atlas-checklist">
+          <li><strong>1.</strong> Corre <code>./bmctl atlas-jugar</code></li>
+          <li><strong>2.</strong> Espera a que Atlas cargue <code>https://www.xbox.com/play</code></li>
+          <li><strong>3.</strong> Mantén el Control Room abierto para ver estado y runtime</li>
+          <li><strong>4.</strong> Revisa <code>./bmctl atlas-status</code> o <code>/api/atlas-status</code></li>
+        </ol>
+      </details>
+    </section>
+
+    <section class="panel primary-actions">
+      <div class="panel-title">
+        <h2>Jugar</h2>
+        <span id="last-refresh">--</span>
+      </div>
+      <div class="mode-switch" id="mode-switch"></div>
+      <p class="mode-copy" id="mode-copy">Game mode activo: acceso directo al runtime puro.</p>
+      <div class="action-grid">
+        <button data-command="atlas-jugar" class="action primary">Jugar</button>
+        <button data-command="atlas-status" class="action">Estado</button>
+        <button data-command="buttons" class="action">Botones Live</button>
+      </div>
+      <div class="mode-row">
+        <button data-command="game-on" class="action compact warn">Game On</button>
+        <button data-command="game-off" class="action compact">Game Off</button>
+        <button data-command="close" class="action compact danger">Cerrar juego</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">
+        <h2>Salud</h2>
+        <button id="refresh" class="ghost">Refresh</button>
+      </div>
+      <div class="health-grid">
+        <div class="metric"><span>Live polling</span><strong id="livePolling">--</strong></div>
+        <div class="metric"><span>xCloud bridge</span><strong id="bridgeState">--</strong></div>
+        <div class="metric"><span>Chrome CDP</span><strong id="cdpState">--</strong></div>
+        <div class="metric"><span>Virtual pad</span><strong id="padState">--</strong></div>
+      </div>
+      <dl class="details">
+        <div><dt>Frames</dt><dd id="frames">--</dd></div>
+        <div><dt>Clientes</dt><dd id="clients">--</dd></div>
+        <div><dt>Stale</dt><dd id="stale">--</dd></div>
+        <div><dt>Tab</dt><dd id="tab">--</dd></div>
+      </dl>
+    </section>
+
+    <section class="panel command-panel">
+      <div class="panel-title">
+        <h2>Doctor</h2>
+      </div>
+      <div class="action-grid small">
+        <button data-command="doctor" class="action">Doctor</button>
+        <button data-command="status" class="action">Status</button>
+        <button data-command="ram" class="action">RAM</button>
+        <button data-command="recycle" class="action warn">Recycle</button>
+        <button data-command="clean" class="action">Clean</button>
+        <button data-command="test" class="action">Test</button>
+      </div>
+    </section>
+
+    <section class="panel mapper-panel">
+      <div class="panel-title">
+        <h2>Mapeo independiente</h2>
+        <span id="mapper-state">idle</span>
+      </div>
+      <div class="mapper-layout">
+        <div class="target-list" id="target-list"></div>
+        <div class="mapper-workbench">
+          <div class="selected-target">
+            <span>Objetivo</span>
+            <strong id="selected-target">DPad_Up</strong>
+          </div>
+          <div class="mapping-readout">
+            <div><span>Actual</span><strong id="current-binding">--</strong></div>
+            <div><span>Detectado</span><strong id="detected-binding">--</strong></div>
+          </div>
+          <div class="mapper-actions">
+            <button id="listen-binding" class="action primary">Escuchar</button>
+            <button id="save-binding" class="action" disabled>Guardar</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel output-panel">
+      <div class="panel-title">
+        <h2>Salida</h2>
+        <button id="logs" class="ghost">Logs</button>
+      </div>
+      <pre id="output">Listo.</pre>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

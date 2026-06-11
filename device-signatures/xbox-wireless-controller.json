@@ -1,0 +1,35 @@
+{
+  "id": "xbox-wireless-controller",
+  "name": "Xbox Wireless Controller",
+  "vendorId": "0x045e",
+  "productId": "unknown",
+  "transport": "USB/Bluetooth",
+  "aliases": [
+    "Xbox Wireless Controller",
+    "Xbox Controller",
+    "0x045e",
+    "Microsoft"
+  ],
+  "targets": {
+    "xcloud": true,
+    "geforceNow": true,
+    "steamInput": true,
+    "browserGamepadApi": true
+  },
+  "knownGood": {
+    "macosHid": true,
+    "browserGamepadApi": true,
+    "xcloudDirect": true,
+    "steamInput": true,
+    "safariXcloud": true
+  },
+  "classification": {
+    "xinputIdentity": true,
+    "cloudGamingReady": true,
+    "recommendedPath": "Preferred controller path for Xbox Cloud on macOS: connect by USB-C or Bluetooth and play directly."
+  },
+  "notes": [
+    "Expected best-case controller identity for Xbox Cloud.",
+    "Use as the positive baseline when comparing future hardware."
+  ]
+}

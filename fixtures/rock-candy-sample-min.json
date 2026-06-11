@@ -1,0 +1,56 @@
+{
+  "session": {
+    "generatedAt": "2026-05-06T00:00:00.000Z",
+    "device": {
+      "id": "Rock Candy Wired Controller for Nintendo Switch (Vendor: 0e6f Product: 0187)",
+      "index": 0,
+      "mapping": "",
+      "buttons": 14,
+      "axes": 10
+    },
+    "sampleCount": 6,
+    "durationMs": 300,
+    "profile": {
+      "axes": {
+        "A0": { "min": -0.98, "max": 0.97, "neutral": 0.004, "states": [-0.98, 0.004, 0.97], "likelyHat": false, "likelyAnalog": false },
+        "A9": { "min": -1, "max": 1.286, "neutral": 1.286, "states": [-1, -0.429, 0.143, 0.714, 1.286], "likelyHat": true, "likelyAnalog": false }
+      },
+      "buttons": {
+        "B0": { "states": [0, 1], "pressedCount": 1, "observedPressed": true },
+        "B1": { "states": [0, 1], "pressedCount": 1, "observedPressed": true }
+      },
+      "dpad": {
+        "type": "hat-axis",
+        "axis": 9,
+        "observedStates": [-1, -0.429, 0.143, 0.714, 1.286],
+        "decodedStates": {
+          "Up": -1,
+          "Right": -0.429,
+          "Down": 0.143,
+          "Left": 0.714,
+          "Neutral": 1.286
+        }
+      }
+    },
+    "rawSamples": [
+      { "t": 0, "buttons": [{ "pressed": false, "touched": false, "value": 0 }, { "pressed": false, "touched": false, "value": 0 }], "axes": [0.004, 0, 0, 0, 0, 0, 0, 0, 0, 1.286] },
+      { "t": 50, "buttons": [{ "pressed": true, "touched": true, "value": 1 }, { "pressed": false, "touched": false, "value": 0 }], "axes": [0.004, 0, 0, 0, 0, 0, 0, 0, 0, 1.286] },
+      { "t": 100, "buttons": [{ "pressed": false, "touched": false, "value": 0 }, { "pressed": true, "touched": true, "value": 1 }], "axes": [0.004, 0, 0, 0, 0, 0, 0, 0, 0, 1.286] },
+      { "t": 150, "buttons": [{ "pressed": false, "touched": false, "value": 0 }, { "pressed": false, "touched": false, "value": 0 }], "axes": [-0.98, 0, 0, 0, 0, 0, 0, 0, 0, -1] },
+      { "t": 200, "buttons": [{ "pressed": false, "touched": false, "value": 0 }, { "pressed": false, "touched": false, "value": 0 }], "axes": [0.97, 0, 0, 0, 0, 0, 0, 0, 0, -0.429] },
+      { "t": 300, "buttons": [{ "pressed": false, "touched": false, "value": 0 }, { "pressed": false, "touched": false, "value": 0 }], "axes": [0.004, 0, 0, 0, 0, 0, 0, 0, 0, 1.286] }
+    ]
+  },
+  "calibration": {
+    "controllerFamily": "directinput-like",
+    "layout": "calibrated",
+    "dpadMode": "hat-axis",
+    "triggerMode": "buttons",
+    "semantic": {
+      "A": { "source": "B0", "kind": "button", "index": 0, "confidence": 0.99, "from": 0, "to": 1, "delta": 1 },
+      "B": { "source": "B1", "kind": "button", "index": 1, "confidence": 0.99, "from": 0, "to": 1, "delta": 1 },
+      "DPad_Up": { "source": "A9", "kind": "axis", "index": 9, "confidence": 0.99, "from": 1.286, "to": -1, "delta": -2.286 },
+      "DPad_Right": { "source": "A9", "kind": "axis", "index": 9, "confidence": 0.99, "from": 1.286, "to": -0.429, "delta": -1.715 }
+    }
+  }
+}

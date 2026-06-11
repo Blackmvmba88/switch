@@ -1,0 +1,193 @@
+{
+  "profileVersion": 1,
+  "generatedAt": "2026-05-09T12:00:00",
+  "device": {
+    "id": "Rock Candy Wired Controller for Nintendo Switch (Vendor: 0e6f Product: 0187)",
+    "mapping": "standard",
+    "buttons": 14,
+    "axes": 10
+  },
+  "layout": "switch-rock-candy:xbox-physical",
+  "controllerFamily": "directinput-like",
+  "dpadMode": "hat-axis",
+  "triggerMode": "buttons",
+  "semantic": {
+    "A": {
+      "source": "B1",
+      "kind": "button",
+      "index": 1,
+      "confidence": 0.99,
+      "position": "bottom",
+      "printedLabel": "B",
+      "mappedBy": "xbox-physical"
+    },
+    "B": {
+      "source": "B0",
+      "kind": "button",
+      "index": 0,
+      "confidence": 0.99,
+      "position": "right",
+      "printedLabel": "A",
+      "mappedBy": "xbox-physical"
+    },
+    "X": {
+      "source": "B3",
+      "kind": "button",
+      "index": 3,
+      "confidence": 0.99,
+      "position": "left",
+      "printedLabel": "Y",
+      "mappedBy": "xbox-physical"
+    },
+    "Y": {
+      "source": "B2",
+      "kind": "button",
+      "index": 2,
+      "confidence": 0.99,
+      "position": "top",
+      "printedLabel": "X",
+      "mappedBy": "xbox-physical"
+    },
+    "LB": {
+      "source": "B4",
+      "kind": "button",
+      "index": 4
+    },
+    "RB": {
+      "source": "B5",
+      "kind": "button",
+      "index": 5
+    },
+    "LT": {
+      "source": "B6",
+      "kind": "button",
+      "index": 6
+    },
+    "RT": {
+      "source": "B7",
+      "kind": "button",
+      "index": 7
+    },
+    "Back": {
+      "source": "B8",
+      "kind": "button",
+      "index": 8
+    },
+    "Start": {
+      "source": "B9",
+      "kind": "button",
+      "index": 9
+    },
+    "L3": {
+      "source": "B10",
+      "kind": "button",
+      "index": 10
+    },
+    "R3": {
+      "source": "B11",
+      "kind": "button",
+      "index": 11
+    },
+    "Guide": {
+      "source": "B12",
+      "kind": "button",
+      "index": 12
+    },
+    "DPad_Up": {
+      "source": "A9",
+      "kind": "axis",
+      "index": 9,
+      "from": 1.286,
+      "to": -1
+    },
+    "DPad_Down": {
+      "source": "A9",
+      "kind": "axis",
+      "index": 9,
+      "from": 1.286,
+      "to": 0.143
+    },
+    "DPad_Left": {
+      "source": "A9",
+      "kind": "axis",
+      "index": 9,
+      "from": 1.286,
+      "to": 0.714
+    },
+    "DPad_Right": {
+      "source": "A9",
+      "kind": "axis",
+      "index": 9,
+      "from": 1.286,
+      "to": -0.429
+    },
+    "LX": {
+      "source": "A0",
+      "kind": "axis",
+      "index": 0
+    },
+    "LY": {
+      "source": "A1",
+      "kind": "axis",
+      "index": 1
+    },
+    "RX": {
+      "source": "A2",
+      "kind": "axis",
+      "index": 2
+    },
+    "RY": {
+      "source": "A3",
+      "kind": "axis",
+      "index": 3
+    }
+  },
+  "ranges": {
+    "A0": [
+      -1,
+      1
+    ],
+    "A1": [
+      -1,
+      1
+    ],
+    "A2": [
+      -1,
+      1
+    ],
+    "A3": [
+      -1,
+      1
+    ],
+    "A9": [
+      -1,
+      1.286
+    ]
+  },
+  "deadzones": {
+    "A0": 0.1,
+    "A1": 0.1,
+    "A2": 0.1,
+    "A3": 0.1,
+    "A9": 0.35
+  },
+  "dpad": {
+    "type": "hat-axis",
+    "axis": 9,
+    "observedStates": [
+      -1,
+      -0.429,
+      0.143,
+      0.714,
+      1.286
+    ],
+    "decodedStates": {
+      "Up": -1,
+      "Right": -0.429,
+      "Down": 0.143,
+      "Left": 0.714,
+      "Neutral": 1.286
+    }
+  },
+  "updatedAt": "2026-06-11T15:55:25.138Z"
+}

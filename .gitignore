@@ -1,0 +1,30 @@
+.DS_Store
+.codex/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Browser/runtime state
+chrome-xbox-control-profile/
+chrome-xcloud-steam-profile/
+
+# Local runtime logs and Steam cache backups
+logs/
+steam-login-backups/
+
+# Local compiled/scratch runtime state.
+.tmp-runtime-test/
+.tmp-hid-inspector/
+.tmp-virtual-hid-bridge/
+
+# Kept as a local downloaded checkout; saved as snapshots/github-latest-switch-files-*.tar.gz.
+github-latest-switch/
+
+# Python/http-server scratch logs
+*.log
+
+# Release artifacts
+dist/

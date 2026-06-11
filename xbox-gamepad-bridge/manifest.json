@@ -1,0 +1,48 @@
+{
+  "manifest_version": 3,
+  "name": "Xbox Cloud Gamepad Bridge",
+  "version": "0.2.0",
+  "description": "Normalizes Switch-style HID gamepads for Xbox Cloud Gaming.",
+  "host_permissions": [
+    "https://www.xbox.com/*",
+    "https://xbox.com/*",
+    "https://*.xbox.com/*",
+    "https://*.xboxlive.com/*",
+    "https://*.xboxservices.com/*",
+    "https://*.xboxab.com/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.xbox.com/*",
+        "https://xbox.com/*",
+        "https://*.xbox.com/*",
+        "https://*.xboxlive.com/*",
+        "https://*.xboxservices.com/*",
+        "https://*.xboxab.com/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["bridge.js"],
+      "matches": [
+        "https://www.xbox.com/*",
+        "https://xbox.com/*",
+        "https://*.xbox.com/*",
+        "https://*.xboxlive.com/*",
+        "https://*.xboxservices.com/*",
+        "https://*.xboxab.com/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*"
+      ]
+    }
+  ]
+}

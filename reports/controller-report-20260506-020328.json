@@ -1,0 +1,14 @@
+{
+  "generatedAt": "2026-05-06T02:03:28",
+  "target": "xcloud",
+  "hidRows": [],
+  "signature": null,
+  "checks": {
+    "hidVisible": false,
+    "browserGamepadApi": "unknown",
+    "xinputIdentity": "unknown",
+    "targetDirectSupport": "unknown",
+    "cloudGamingReady": "unknown"
+  },
+  "recommendation": "Run browser validation and add a known device signature."
+}
