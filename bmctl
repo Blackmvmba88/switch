@@ -33,6 +33,7 @@ BlackMamba Input Runtime metacomandos
 
 Uso:
   ./bmctl play              Abre Atlas si esta preferido; si no, abre xCloud con puente CDP + HID source
+  ./bmctl play              Abre Chrome/xCloud con puente CDP + HID source
   ./bmctl wake              Levanta Chrome CDP/xCloud sin tocar daemons
   ./bmctl atlas             Alias base para Atlas; igual que ./bmctl atlas-jugar
   ./bmctl atlas-open        Alias alterno para abrir Atlas y jugar
@@ -56,6 +57,7 @@ Uso:
   ./bmctl app-stop          Detiene BlackMamba Control Room
   ./bmctl app-why           Diagnostica por que Control Room se apago
   ./bmctl status            Estado live-monitor + HID source + xCloud tab
+  ./bmctl ready             Veredicto unico: listo / no listo con razones
   ./bmctl browser-status    Estado del navegador/CDP y preferencia Atlas/Chrome
   ./bmctl atlas-status      Estado de Atlas y URL objetivo
   ./bmctl sessions          Historial y promedio de sesiones de juego
@@ -108,6 +110,7 @@ browser_status() {
   local preferred="${BROWSER_APP:-auto}"
   local chrome_path="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
   local atlas_path="/Applications/ChatGPT Atlas.app/Contents/MacOS/ChatGPT Atlas"
+  local profile_dir="${PROFILE_DIR:-/tmp/blackmamba-xcloud-cdp-profile}"
   local selected="none"
   if [[ -n "${CHROME_BIN:-}" && -x "${CHROME_BIN}" ]]; then
     selected="${CHROME_BIN}"
@@ -134,14 +137,14 @@ browser_status() {
     echo
     "${NODE_BIN}" -e "const fs=require('fs'); const p=process.argv[1]; const data=JSON.parse(fs.readFileSync(p,'utf8')); console.log(JSON.stringify({state:data.state, cdp:data.cdp, browserApp:data.browserApp, browserName:data.browserName, error:data.error}, null, 2));" "${HOME}/Library/Application Support/BlackMambaInput/reports/xcloud-bridge-status.json" 2>/dev/null || true
   fi
-  if [[ -f "${PROFILE_DIR}/browser-status.json" ]]; then
+  if [[ -f "${profile_dir}/browser-status.json" ]]; then
     echo
-    cat "${PROFILE_DIR}/browser-status.json"
+    cat "${profile_dir}/browser-status.json"
   fi
 }
 
 atlas_status() {
-  local target_url="https://www.xbox.com/play"
+  local target_url="https://www.xbox.com/en-us/play/games/microsoft-flight-simulator-2024/9p38d19t7lrv"
   local atlas_app="/Applications/ChatGPT Atlas.app"
   local atlas_installed
   local atlas_state="unknown"
@@ -254,10 +257,10 @@ open_atlas_safe() {
   if [[ -x "/Applications/ChatGPT Atlas.app/Contents/MacOS/ChatGPT Atlas" ]]; then
     set_browser_status "ChatGPT Atlas" "preferred" "Atlas marcado como camino preferido." "atlas"
     echo "Atlas preferido: usando el camino Atlas para abrir la sesion."
-    open -na "ChatGPT Atlas" --args "https://www.xbox.com/play"
+    open -a "ChatGPT Atlas" --args "https://www.xbox.com/en-us/play/games/microsoft-flight-simulator-2024/9p38d19t7lrv"
     osascript -e 'tell application "ChatGPT Atlas" to activate' >/dev/null 2>&1 || true
     set_browser_status "ChatGPT Atlas" "opened" "Atlas abierto sin CDP; usa el Control Room para el resto." "atlas"
-    echo "Atlas abierto sin CDP en https://www.xbox.com/play."
+    echo "Atlas abierto sin CDP en https://www.xbox.com/en-us/play/games/microsoft-flight-simulator-2024/9p38d19t7lrv."
   else
     echo "No encuentro ChatGPT Atlas en /Applications."
     exit 1
@@ -266,11 +269,7 @@ open_atlas_safe() {
 
 case "${1:-help}" in
   play)
-    if [[ -x "/Applications/ChatGPT Atlas.app/Contents/MacOS/ChatGPT Atlas" ]]; then
-      open_atlas_safe
-    else
-      "${ROOT}/play-xcloud-cdp-bridge.sh"
-    fi
+    "${ROOT}/play-xcloud-cdp-bridge.sh"
     ;;
   wake)
     "${ROOT}/play-xcloud-cdp-bridge.sh"
@@ -397,6 +396,15 @@ case "${1:-help}" in
     echo "== chrome tabs =="
     chrome_tabs
     ;;
+  ready)
+    if curl -fsS "http://127.0.0.1:${APP_PORT}/api/ready" >/tmp/blackmamba-ready.json 2>/dev/null; then
+      "${NODE_BIN}" -e "const fs=require('fs'); const data=JSON.parse(fs.readFileSync('/tmp/blackmamba-ready.json','utf8')); console.log(JSON.stringify(data, null, 2));" >/dev/null 2>&1 || true
+      cat /tmp/blackmamba-ready.json
+    else
+      echo "No pude leer /api/ready en el Control Room."
+      exit 1
+    fi
+    ;;
   browser-status|browser|browser-doctor)
     browser_status
     ;;
@@ -439,6 +447,7 @@ case "${1:-help}" in
   game-on|gaming-on)
     echo "== modo juego ON =="
     "${NODE_BIN}" "${ROOT}/runtime/network-game-mode.js" start || true
+    "${ROOT}/install-live-monitor-agent.sh" >/dev/null
     if ! AUTO_OPEN_XCLOUD=1 "${ROOT}/install-xcloud-bridge-agent.sh" >/dev/null; then
       echo "Aviso: no pude activar el daemon xCloud; usando arranque directo."
     fi

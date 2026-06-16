@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EXTENSION_DIR="${ROOT}/xbox-gamepad-bridge"
 PROFILE_DIR="${ROOT}/chrome-xbox-control-profile"
-URL="${URL:-https://www.xbox.com/play}"
+URL="${URL:-https://www.xbox.com/en-us/play/games/microsoft-flight-simulator-2024/9p38d19t7lrv}"
 
 if [[ ! -f "${EXTENSION_DIR}/manifest.json" ]]; then
   echo "No encuentro la extension en ${EXTENSION_DIR}"

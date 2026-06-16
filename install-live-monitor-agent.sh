@@ -29,6 +29,7 @@ mkdir -p "${APP_ROOT}/runtime" "${APP_ROOT}/profiles" "${APP_ROOT}/logs" "${APP_
 
 cp "${PROJECT_ROOT}/runtime/live-monitor.js" "${APP_ROOT}/runtime/live-monitor.js"
 cp "${PROJECT_ROOT}/runtime/translate-sample.js" "${APP_ROOT}/runtime/translate-sample.js"
+cp "${PROJECT_ROOT}/runtime/stick-calibration.js" "${APP_ROOT}/runtime/stick-calibration.js"
 cp "${PROJECT_ROOT}/profiles/rock-candy-wired-controller-for-nintendo-switch-vendor-0e6f-product-0187.normalized.json" "${APP_ROOT}/profiles/rock-candy.normalized.json"
 
 cat > "${PLIST}" <<PLIST

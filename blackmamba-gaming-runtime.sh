@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_DIR="${ROOT}/logs"
 PROFILE_DIR="${ROOT}/chrome-xcloud-steam-profile"
-URL="${URL:-https://www.xbox.com/play}"
+URL="${URL:-https://www.xbox.com/en-us/play/games/microsoft-flight-simulator-2024/9p38d19t7lrv}"
 CONTROL_PATTERN="${CONTROL_PATTERN:-Rock Candy|Nintendo|Switch|0xe6f|0x187}"
 WATCH_INTERVAL="${WATCH_INTERVAL:-5}"
 STEAM_WAIT_SECONDS="${STEAM_WAIT_SECONDS:-8}"
@@ -80,9 +80,8 @@ open_chrome_xcloud() {
 
   mkdir -p "${PROFILE_DIR}"
   log "Abriendo Chrome gaming profile: ${URL}"
-  open -na "Google Chrome" --args \
+  open -a "Google Chrome" --args \
     "--user-data-dir=${PROFILE_DIR}" \
-    "--new-window" \
     "${URL}"
 }
 
@@ -102,9 +101,8 @@ open_local_gamepad_test() {
 
   mkdir -p "${PROFILE_DIR}"
   log "Abriendo test local de control: ${test_url}"
-  open -na "Google Chrome" --args \
+  open -a "Google Chrome" --args \
     "--user-data-dir=${PROFILE_DIR}" \
-    "--new-window" \
     "${test_url}"
 }
 

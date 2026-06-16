@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROFILE_DIR="${ROOT}/chrome-xcloud-steam-profile"
-URL="${URL:-https://www.xbox.com/play}"
+URL="${URL:-https://www.xbox.com/en-us/play/games/microsoft-flight-simulator-2024/9p38d19t7lrv}"
 CONTROL_PATTERN="${CONTROL_PATTERN:-Rock Candy|Nintendo|Switch|Controller|0xe6f|0x187}"
 RUNTIME="${ROOT}/blackmamba-gaming-runtime.sh"
 BROWSER_APP="${BROWSER_APP:-}"
@@ -107,9 +107,8 @@ open_chrome() {
 
   mkdir -p "${PROFILE_DIR}"
   echo "Abriendo ${browser_app} para Xbox Cloud..."
-  open -na "${browser_app}" --args \
+  open -a "${browser_app}" --args \
     "--user-data-dir=${PROFILE_DIR}" \
-    "--new-window" \
     "${URL}"
 }
 

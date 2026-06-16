@@ -160,6 +160,20 @@ for (const [name, value] of Object.entries(expected)) {
 console.log("DPad_Up/Right/Down/Left decode cleanly from hat axis A9");
 NODE
 
+echo "== Neutral stick assertions =="
+node - <<'NODE'
+const { createStickCalibration } = require("./runtime/stick-calibration");
+const cal = createStickCalibration({ minSamples: 4, snapThreshold: 0.04 });
+for (let i = 0; i < 12; i += 1) {
+  const frame = cal.updateAxes([0.004, 0, 0, 0]);
+  if (i === 11 && frame.LX.corrected !== 0) {
+    console.error(`Neutral LX drifted to ${frame.LX.corrected}`);
+    process.exit(1);
+  }
+}
+console.log("Neutral LX snaps to zero when nothing is pressed");
+NODE
+
 echo "== Trace summary =="
 node "${ROOT}/runtime/summarize-trace.js" "${TRACE_OUT}"
 

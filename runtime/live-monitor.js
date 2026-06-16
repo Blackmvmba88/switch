@@ -4,9 +4,12 @@ const fs = require("node:fs");
 const http = require("node:http");
 const path = require("node:path");
 const { frameFromSample } = require("./translate-sample.js");
+const { createStickCalibration } = require("./stick-calibration");
 
 const ROOT = path.resolve(__dirname, "..");
 const DEFAULT_PROFILE = path.join(ROOT, "profiles", "rock-candy-wired-controller-for-nintendo-switch-vendor-0e6f-product-0187.normalized.json");
+const APP_ROOT = path.join(process.env.HOME || "", "Library/Application Support/BlackMambaInput");
+const CALIBRATION_FILE = path.join(APP_ROOT, "profiles", "rock-candy.normalized.json");
 const MAX_PENDING_BYTES = Number(process.env.BM_MAX_PENDING_BYTES || 1024 * 1024);
 const MAX_CLIENTS = Number(process.env.BM_MAX_CLIENTS || 8);
 const CLIENT_IDLE_MS = Number(process.env.BM_CLIENT_IDLE_MS || 20000);
@@ -22,6 +25,14 @@ function hasFlag(name) {
 
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, "utf8"));
+}
+
+function readJsonSafe(file) {
+  try {
+    return readJson(file);
+  } catch (_) {
+    return null;
+  }
 }
 
 function ensureDir(file) {
@@ -106,6 +117,11 @@ function main() {
   const statusPath = argValue("--status", path.join(ROOT, "reports", "live-status.json"));
   const verbose = hasFlag("--verbose");
   const profile = readJson(profilePath);
+  const calibration = createStickCalibration();
+  const savedCalibration = readJsonSafe(CALIBRATION_FILE);
+  if (savedCalibration?.calibration) {
+    calibration.restore(savedCalibration.calibration);
+  }
   let previousFrame = null;
   let lastBrowserFrameAt = 0;
   let frameCount = 0;
@@ -159,6 +175,16 @@ function main() {
       ...extra
     };
     safeWrite(statusPath, `${JSON.stringify(status, null, 2)}\n`);
+  }
+
+  function persistCalibration() {
+    const persistedProfile = {
+      ...profile,
+      calibration: calibration.serialize(),
+      updatedAt: new Date().toISOString()
+    };
+    ensureDir(CALIBRATION_FILE);
+    safeWrite(CALIBRATION_FILE, `${JSON.stringify(persistedProfile, null, 2)}\n`);
   }
 
   const server = http.createServer((req, res) => {
@@ -265,27 +291,48 @@ function main() {
         if (message.type === "browser-frame" && message.sample) {
           lastBrowserFrameAt = Date.now();
           frameCount += 1;
-          const frame = frameFromSample(message.sample, profile, previousFrame);
-          previousFrame = frame;
-          const { _heldMs, ...publicFrame } = frame;
-          const events = summarizeFrame(publicFrame);
+          const correction = calibration.updateAxes(message.sample.axes || []);
+          const calibratedSample = {
+            ...message.sample,
+            axes: (message.sample.axes || []).map((value, index) => {
+              const axisName = ["LX", "LY", "RX", "RY"][index];
+              return correction[axisName]?.corrected ?? value;
+            })
+          };
+          const calibratedFrame = frameFromSample(calibratedSample, profile, previousFrame);
+          previousFrame = calibratedFrame;
+          const { _heldMs, ...calibratedPublicFrame } = calibratedFrame;
+          const events = summarizeFrame(calibratedPublicFrame);
           
           writeEvent({
             kind: "browser-frame",
             device: message.device,
             sampleT: message.sample.t,
-            frame: publicFrame,
+            frame: calibratedPublicFrame,
+            calibration: {
+              axes: correction,
+              snapshot: calibration.snapshot(),
+              warnings: calibration.validate()
+            },
             events
           });
+          if (correction.LX?.calibrated || correction.LY?.calibrated || correction.RX?.calibrated || correction.RY?.calibrated) {
+            persistCalibration();
+          }
           writeStatus({ lastDevice: message.device });
           
           // Broadcast the full semantic state and events to all clients
           broadcast({ 
             type: "semantic-frame", 
-            frame: publicFrame, 
+            frame: calibratedPublicFrame, 
             events,
             device: message.device,
-            rawSample: message.sample
+            rawSample: message.sample,
+            calibration: {
+              axes: correction,
+              snapshot: calibration.snapshot(),
+              warnings: calibration.validate()
+            }
           });
         } else if (message.type === "heartbeat") {
           writeStatus({ heartbeat: message.at || new Date().toISOString() });

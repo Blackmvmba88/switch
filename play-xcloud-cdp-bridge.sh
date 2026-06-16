@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEBUG_PORT="${DEBUG_PORT:-9224}"
 PROFILE_DIR="${PROFILE_DIR:-/tmp/blackmamba-xcloud-cdp-profile}"
-URL="${URL:-https://www.xbox.com/play}"
+URL="${URL:-https://www.xbox.com/en-us/play/games/microsoft-flight-simulator-2024/9p38d19t7lrv}"
 PID_FILE="${PROFILE_DIR}/chrome.pid"
 BROWSER_STATUS="${PROFILE_DIR}/browser-status.json"
 BROWSER_REPORT_STATUS="${HOME}/Library/Application Support/BlackMambaInput/reports/browser-status.json"
@@ -31,11 +31,6 @@ browser_preference() {
 resolve_browser_bin() {
   local preference
   preference="$(browser_preference)"
-  if [[ "${preference}" == "atlas" ]]; then
-    printf '%s\n' "ATLAS_DIRECT"
-    return 0
-  fi
-
   if [[ -n "${CHROME_BIN}" && -x "${CHROME_BIN}" ]]; then
     printf '%s\n' "${CHROME_BIN}"
     return 0
@@ -61,7 +56,7 @@ resolve_browser_bin() {
           return 0
         fi
         ;;
-    esac
+      esac
   fi
 
   if [[ -x "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" ]]; then
@@ -78,8 +73,26 @@ resolve_browser_bin() {
 }
 
 "${ROOT}/start-hid-live-source.sh"
+"${ROOT}/install-live-monitor-agent.sh" >/dev/null
 
 mkdir -p "${PROFILE_DIR}"
+LOCK_DIR="${PROFILE_DIR}/launch.lock"
+
+if mkdir "${LOCK_DIR}" 2>/dev/null; then
+  trap 'rmdir "${LOCK_DIR}" 2>/dev/null || true' EXIT
+else
+  echo "Otra apertura de xCloud ya esta en curso; esperando al navegador existente..."
+  for _ in {1..60}; do
+    if curl -fsS "http://127.0.0.1:${DEBUG_PORT}/json/version" >/dev/null 2>&1; then
+      REUSE_XCLOUD=1 URL="${URL}" "${NODE_BIN}" "${ROOT}/runtime/inject-bridge-cdp.js" "${DEBUG_PORT}" || true
+      echo "xCloud ya estaba en proceso; reutilice la sesion disponible."
+      exit 0
+    fi
+    sleep 0.25
+  done
+  echo "Otra apertura sigue bloqueada y CDP no aparecio; no abrire otra ventana." >&2
+  exit 0
+fi
 
 write_browser_status() {
   local preference="${4:-}"
@@ -101,7 +114,15 @@ chrome_alive() {
       return 0
     fi
   fi
-  pgrep -f "remote-debugging-port=${DEBUG_PORT}.*blackmamba-xcloud-cdp-profile|blackmamba-xcloud-cdp-profile.*remote-debugging-port=${DEBUG_PORT}" >/dev/null 2>&1
+  ps -axo command |
+    grep -F -- "remote-debugging-port=${DEBUG_PORT}" |
+    grep -F -- "user-data-dir=${PROFILE_DIR}" |
+    grep -v grep >/dev/null 2>&1
+}
+
+focus_existing_browser() {
+  local browser_app="${1:-Google Chrome}"
+  osascript -e "tell application \"${browser_app}\" to activate" >/dev/null 2>&1 || true
 }
 
 if ! chrome_alive; then
@@ -112,33 +133,24 @@ if ! chrome_alive; then
     exit 1
   fi
   case "${BROWSER_BIN}" in
-    ATLAS_DIRECT)
-      write_browser_status "ChatGPT Atlas" "launching" "Atlas preferido: abriendo sin CDP para evitar el singleton crash." "atlas"
-      open -na "ChatGPT Atlas" --args "${URL}"
-      sleep 2
-      if pgrep -f "ChatGPT Atlas.*${URL}" >/dev/null 2>&1; then
-        write_browser_status "ChatGPT Atlas" "opened" "Atlas abierto sin CDP; usa el Control Room para el resto." "atlas"
-        echo "Atlas abierto sin CDP en ${URL}."
-        exit 0
-      fi
-      write_browser_status "ChatGPT Atlas" "opened" "Atlas abierto sin CDP; verifica la ventana manualmente." "atlas"
-      echo "Atlas abierto sin CDP en ${URL}."
-      exit 0
-      ;;
     */Google\ Chrome) BROWSER_NAME="Google Chrome" ;;
     */ChatGPT\ Atlas) BROWSER_NAME="ChatGPT Atlas" ;;
     *) BROWSER_NAME="$(basename "${BROWSER_BIN}")" ;;
   esac
-  write_browser_status "${BROWSER_NAME}" "launching" "Abriendo navegador con perfil aislado." "${BROWSER_APP:-}"
-  nohup "${BROWSER_BIN}" \
-    "--user-data-dir=${PROFILE_DIR}" \
-    "--remote-debugging-port=${DEBUG_PORT}" \
-    "--no-first-run" \
-    "--no-default-browser-check" \
-    "--disable-sync" \
-    "about:blank" \
-    >> "${PROFILE_DIR}/chrome.out.log" 2>> "${PROFILE_DIR}/chrome.err.log" < /dev/null &
-  echo "$!" > "${PID_FILE}"
+  if [[ -f "${PID_FILE}" ]]; then
+    focus_existing_browser "${BROWSER_NAME}"
+  else
+    write_browser_status "${BROWSER_NAME}" "launching" "Abriendo navegador con perfil aislado." "${BROWSER_APP:-}"
+    nohup "${BROWSER_BIN}" \
+      "--user-data-dir=${PROFILE_DIR}" \
+      "--remote-debugging-port=${DEBUG_PORT}" \
+      "--no-first-run" \
+      "--no-default-browser-check" \
+      "--disable-sync" \
+      "about:blank" \
+      >> "${PROFILE_DIR}/chrome.out.log" 2>> "${PROFILE_DIR}/chrome.err.log" < /dev/null &
+    echo "$!" > "${PID_FILE}"
+  fi
 fi
 
 for _ in {1..30}; do
@@ -155,7 +167,7 @@ if ! curl -fsS "http://127.0.0.1:${DEBUG_PORT}/json/version" >/dev/null 2>&1; th
   exit 1
 fi
 
-URL="${URL}" "${NODE_BIN}" "${ROOT}/runtime/inject-bridge-cdp.js" "${DEBUG_PORT}"
+REUSE_XCLOUD=1 URL="${URL}" "${NODE_BIN}" "${ROOT}/runtime/inject-bridge-cdp.js" "${DEBUG_PORT}"
 
 echo
 echo "xCloud abierto con bridge CDP inyectado."

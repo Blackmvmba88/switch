@@ -5,10 +5,11 @@ const path = require("node:path");
 
 const appRoot = process.env.BLACKMAMBA_APP_ROOT || path.resolve(__dirname, "..");
 const debugPort = Number(process.env.DEBUG_PORT || 9224);
-const targetUrl = process.env.URL || "https://www.xbox.com/play";
+const targetUrl = process.env.URL || "https://www.xbox.com/en-us/play/games/microsoft-flight-simulator-2024/9p38d19t7lrv";
 const profileDir = process.env.PROFILE_DIR || "/tmp/blackmamba-xcloud-cdp-profile";
 const intervalMs = Number(process.env.INTERVAL_MS || 5000);
 const autoOpenXcloud = process.env.AUTO_OPEN_XCLOUD === "1";
+const autoShutdownWhenAway = process.env.AUTO_SHUTDOWN_WHEN_AWAY !== "0";
 const browserApp = process.env.BROWSER_APP || "";
 const browserPrefPath = process.env.BROWSER_PREF_PATH || path.join(appRoot, "reports", "browser-status.json");
 const injectScript = path.join(appRoot, "runtime", "inject-bridge-cdp.js");
@@ -20,6 +21,7 @@ const awayGraceMs = Number(process.env.AUTO_SHUTDOWN_AWAY_GRACE_MS || 90 * 1000)
 
 let lastLaunchAt = 0;
 let lastInjectAt = 0;
+let lastOpenTargetAt = 0;
 let injecting = false;
 let closing = false;
 let session = null;
@@ -158,7 +160,7 @@ async function maybeAutoShutdown(reason) {
 
   const app = await frontmostApp();
   const awayFromChrome = app && !/chrome/i.test(app);
-  if (!awayFromChrome) return false;
+  if (!awayFromChrome || !autoShutdownWhenAway) return false;
 
   closing = true;
   const record = {
@@ -195,7 +197,7 @@ async function fetchJson(url) {
 function isPlayTarget(target) {
   return target.type === "page"
     && /xbox\.com/.test(target.url || "")
-    && /\/play(\/|$|\?)/.test(target.url || "")
+    && (/(\/play(\/|$|\?))/.test(target.url || "") || /\/stream(\/|$|\?)/.test(target.url || ""))
     && !/\/auth\//.test(target.url || "");
 }
 
@@ -203,25 +205,46 @@ async function getTargets() {
   return fetchJson(`http://127.0.0.1:${debugPort}/json`);
 }
 
+async function isBrowserRunning() {
+  const result = await run("pgrep", ["-f", `user-data-dir=${profileDir}`]);
+  return result.ok && result.stdout.trim().length > 0;
+}
+
 async function launchChrome() {
   const now = Date.now();
-  if (now - lastLaunchAt < 15000) return;
+  const throttled = now - lastLaunchAt < 60000;
+
+  if (await isBrowserRunning()) {
+    writeStatus({ state: "browser_running_no_cdp", cdp: "unavailable", ...sessionSnapshot() });
+    return false;
+  }
+
+  if (throttled) {
+    writeStatus({ state: "launch_throttled", cdp: "unavailable", ...sessionSnapshot() });
+    return false;
+  }
+
   lastLaunchAt = now;
   fs.mkdirSync(profileDir, { recursive: true });
   const preference = browserApp || readBrowserPreference();
   const browserName = preference === "atlas"
     ? "ChatGPT Atlas"
     : browserApp || (fs.existsSync("/Applications/Google Chrome.app") ? "Google Chrome" : "ChatGPT Atlas");
-  await run("open", [
-    "-na", browserName, "--args",
-    `--user-data-dir=${profileDir}`,
-    `--remote-debugging-port=${debugPort}`,
-    "--no-first-run",
-    "--no-default-browser-check",
-    "--disable-sync",
-    "about:blank"
-  ], { timeout: 10000 });
+
+  const args = ["-g", "-na", browserName, "--args", `--user-data-dir=${profileDir}`];
+  if (browserName !== "ChatGPT Atlas") {
+    args.push(
+      `--remote-debugging-port=${debugPort}`,
+      "--no-first-run",
+      "--no-default-browser-check",
+      "--disable-sync"
+    );
+  }
+  args.push("about:blank");
+
+  await run("open", args, { timeout: 10000 });
   writeStatus({ state: "launching_browser", cdp: "unavailable", browserName, ...sessionSnapshot() });
+  return true;
 }
 
 async function inject({ reuse }) {
@@ -246,7 +269,6 @@ async function tick() {
     if (await maybeAutoShutdown("cdp_unavailable_after_play")) return;
     if (autoOpenXcloud) {
       await launchChrome();
-      writeStatus({ state: "starting_chrome", cdp: "unavailable", error: error.message, ...sessionSnapshot() });
     } else {
       writeStatus({ state: "idle_no_cdp", cdp: "unavailable", error: error.message, ...sessionSnapshot() });
     }
@@ -263,6 +285,17 @@ async function tick() {
   }
   if (!playTarget && await maybeAutoShutdown("xcloud_tab_closed_after_play")) return;
   const now = Date.now();
+  if (!playTarget && lastOpenTargetAt && now - lastOpenTargetAt < 30000) {
+    writeStatus({
+      state: "waiting_for_xcloud_navigation",
+      cdp: "available",
+      playTarget: false,
+      targets: targets.length,
+      sinceOpenMs: now - lastOpenTargetAt,
+      ...sessionSnapshot()
+    });
+    return;
+  }
   if (now - lastInjectAt < intervalMs) {
     writeStatus({ state: "waiting", cdp: "available", playTarget: Boolean(playTarget), targets: targets.length, ...sessionSnapshot() });
     return;
@@ -270,6 +303,9 @@ async function tick() {
 
   const result = await inject({ reuse: Boolean(playTarget) });
   lastInjectAt = now;
+  if (!playTarget) {
+    lastOpenTargetAt = now;
+  }
   writeStatus({
     state: result.ok ? "injected" : "inject_failed",
     cdp: "available",

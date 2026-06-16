@@ -4,7 +4,7 @@ const path = require("node:path");
 
 const root = path.resolve(__dirname, "..");
 const debugPort = Number(process.env.DEBUG_PORT || process.argv[2] || 9224);
-const targetUrl = process.env.URL || "https://www.xbox.com/play";
+const targetUrl = process.env.URL || "https://www.xbox.com/en-us/play/games/microsoft-flight-simulator-2024/9p38d19t7lrv";
 const bridgeSource = fs.readFileSync(path.join(root, "xbox-gamepad-bridge", "bridge.js"), "utf8");
 const reuseExisting = process.env.REUSE_XCLOUD === "1" || process.argv.includes("--reuse");
 const verifyOnly = process.env.VERIFY_ONLY === "1" || process.argv.includes("--verify");
@@ -13,7 +13,7 @@ const bringToFront = process.env.BRING_TO_FRONT === "1" || process.argv.includes
 function isXboxPlayTarget(item) {
   if (item.type !== "page") return false;
   const url = item.url || "";
-  return /xbox\.com/.test(url) && /\/play(\/|$|\?)/.test(url) && !/\/auth\//.test(url);
+  return /xbox\.com/.test(url) && (/(\/play(\/|$|\?))/.test(url) || /\/stream(\/|$|\?)/.test(url)) && !/\/auth\//.test(url);
 }
 
 function isXboxTarget(item) {
@@ -24,6 +24,10 @@ function isXboxTarget(item) {
 
 function chooseTarget(targets) {
   return targets.find(isXboxPlayTarget) || targets.find(isXboxTarget);
+}
+
+function xboxTargets(targets) {
+  return targets.filter(isXboxTarget);
 }
 
 function collectFrameIds(frameTree, out = []) {
@@ -110,15 +114,24 @@ async function main() {
   const browserWs = version.webSocketDebuggerUrl;
 
   const targetsBefore = await (await fetch(`http://127.0.0.1:${debugPort}/json`)).json();
-  let created = "";
-  let existing = chooseTarget(targetsBefore);
+  const existing = chooseTarget(targetsBefore);
+  const xboxOpenTargets = xboxTargets(targetsBefore);
+  let targetId = "";
+  let reusedExisting = false;
+  let shouldNavigate = !verifyOnly;
 
-  if (reuseExisting || verifyOnly) {
-    created = existing?.id || "";
+  if ((reuseExisting || verifyOnly) && existing) {
+    targetId = existing.id || "";
+    reusedExisting = Boolean(targetId);
+    shouldNavigate = false;
   }
 
-  if (!created && !verifyOnly) {
-    created = await cdp(browserWs, async (send) => {
+  if (!targetId && verifyOnly) {
+    throw new Error("No existing Xbox target available for verification");
+  }
+
+  if (!targetId && !verifyOnly) {
+    targetId = await cdp(browserWs, async (send) => {
       const result = await send("Target.createTarget", { url: "about:blank" });
       return result.targetId;
     });
@@ -127,8 +140,8 @@ async function main() {
   let target;
   for (let attempt = 0; attempt < 20; attempt += 1) {
     const targets = await (await fetch(`http://127.0.0.1:${debugPort}/json`)).json();
-    target = created
-      ? targets.find((item) => item.id === created)
+    target = targetId
+      ? targets.find((item) => item.id === targetId)
       : chooseTarget(targets);
     if (target?.webSocketDebuggerUrl) break;
     await new Promise((resolve) => setTimeout(resolve, 250));
@@ -136,6 +149,23 @@ async function main() {
 
   if (!target?.webSocketDebuggerUrl) {
     throw new Error("No CDP target available");
+  }
+
+  if (xboxOpenTargets.length > 1 && !verifyOnly) {
+    const targetIdsToClose = xboxOpenTargets
+      .filter((item) => item.id && item.id !== target.id)
+      .map((item) => item.id);
+    if (targetIdsToClose.length) {
+      await cdp(browserWs, async (send) => {
+        for (const targetIdToClose of targetIdsToClose) {
+          try {
+            await send("Target.closeTarget", { targetId: targetIdToClose });
+          } catch (_) {
+            // Ignore close failures; we still keep the chosen target.
+          }
+        }
+      });
+    }
   }
 
   await cdp(target.webSocketDebuggerUrl, async (send) => {
@@ -192,13 +222,14 @@ async function main() {
       return;
     }
     const injectedFrames = await injectBridgeEverywhere(send);
-    if (!reuseExisting) {
+    if (shouldNavigate) {
       await send("Page.navigate", { url: targetUrl });
     }
     console.log(`Injected frames: ${injectedFrames}`);
   });
 
-  console.log(`Injected bridge ${reuseExisting ? "into current Xbox tab" : `and opened: ${targetUrl}`}`);
+  const action = reusedExisting ? "into current Xbox tab" : `and opened: ${targetUrl}`;
+  console.log(`Injected bridge ${action}`);
   console.log(`Debug port: ${debugPort}`);
 }
 

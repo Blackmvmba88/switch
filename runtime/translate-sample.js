@@ -57,6 +57,11 @@ function normalizeAxis(raw, range, deadzone = 0.05) {
   return Math.abs(clamped) < deadzone ? 0 : round(clamped);
 }
 
+function readAxisOffset(profile, source) {
+  const value = profile?.calibration?.offsets?.[source];
+  return Number.isFinite(value) ? value : 0;
+}
+
 function buttonActive(raw, binding) {
   if (!binding) {
     return false;
@@ -112,9 +117,11 @@ function frameFromSample(sample, profile, previousFrame) {
     const raw = sourceValue(sample, binding);
     const range = profile.ranges?.[binding.source];
     const deadzone = profile.deadzones?.[binding.source] ?? 0.05;
+    const offset = readAxisOffset(profile, binding.source);
     axes[name] = {
-      value: normalizeAxis(raw, range, deadzone),
+      value: normalizeAxis(raw - offset, range, deadzone),
       raw: round(raw),
+      offset: round(offset),
       source: binding.source
     };
   }

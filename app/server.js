@@ -187,6 +187,18 @@ async function apiStatus() {
   const now = Date.now();
   const liveAgeMs = live?.updatedAt ? now - Date.parse(live.updatedAt) : null;
   const xcloudAgeMs = xcloud?.updatedAt ? now - Date.parse(xcloud.updatedAt) : null;
+  const xcloudTab = cdp.tabs.find((tab) => /xbox\.com/.test(tab.url || ""));
+  const controlReady =
+    live?.browserPolling === "PASS" &&
+    (live.staleMs ?? Infinity) < 1500 &&
+    xcloud?.state === "injected" &&
+    cdp.available &&
+    Boolean(xcloudTab);
+  const readinessReasons = [];
+  if (live?.browserPolling !== "PASS" || (live.staleMs ?? Infinity) >= 1500) readinessReasons.push("live-stale");
+  if (xcloud?.state !== "injected") readinessReasons.push("bridge-not-injected");
+  if (!cdp.available) readinessReasons.push("cdp-unavailable");
+  if (!xcloudTab) readinessReasons.push("xbox-tab-missing");
   return {
     ok: true,
     generatedAt: new Date().toISOString(),
@@ -200,7 +212,15 @@ async function apiStatus() {
       livePolling: live?.browserPolling === "PASS" && (live.staleMs ?? Infinity) < 1500,
       xcloudInjected: xcloud?.state === "injected",
       cdpAvailable: cdp.available,
-      virtualPadLikely: xcloud?.state === "injected" && cdp.available
+      virtualPadLikely: xcloud?.state === "injected" && cdp.available,
+      controlReady,
+      readiness: controlReady ? "ready" : "not_ready",
+      reasons: readinessReasons
+    },
+    ready: {
+      state: controlReady ? "ready" : "not_ready",
+      reasons: readinessReasons,
+      tab: xcloudTab || null
     }
   };
 }
@@ -309,12 +329,22 @@ const server = http.createServer(async (req, res) => {
       sendJson(res, 200, await apiStatus());
       return;
     }
+    if (req.method === "GET" && url.pathname === "/api/ready") {
+      const status = await apiStatus();
+      sendJson(res, 200, {
+        ok: true,
+        ready: status.ready,
+        health: status.health,
+        generatedAt: status.generatedAt
+      });
+      return;
+    }
     if (req.method === "GET" && url.pathname === "/api/atlas-status") {
       const browser = readJson(path.join(APP_ROOT, "reports/browser-status.json"));
       const bridge = readJson(XCLOUD_STATUS);
       sendJson(res, 200, {
         ok: true,
-        targetUrl: "https://www.xbox.com/play",
+        targetUrl: "https://www.xbox.com/en-us/play/games/microsoft-flight-simulator-2024/9p38d19t7lrv",
         atlasInstalled: fs.existsSync("/Applications/ChatGPT Atlas.app"),
         browser,
         bridge

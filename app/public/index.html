@@ -13,16 +13,108 @@
       <p>Runtime local para xCloud, Fortnite y control Xbox virtual.</p>
     </div>
     <div class="header-stack">
-      <div class="status-pill atlas-badge" id="atlas-header-badge">Atlas</div>
-      <div class="atlas-menu" id="atlas-menu" hidden>
-        <button data-atlas-action="atlas-jugar" class="atlas-menu-item">Jugar</button>
-        <button data-atlas-action="atlas-status" class="atlas-menu-item">Estado</button>
-      </div>
+      <button id="edit-toggle" class="ghost edit-toggle">Edit</button>
+      <div class="status-pill atlas-badge">Atlas</div>
       <div class="status-pill" id="overall">Cargando</div>
     </div>
   </header>
 
   <main class="layout">
+    <section class="panel live-panel">
+      <div class="panel-title">
+        <h2>Live</h2>
+        <span id="live-connection">desconectado</span>
+      </div>
+      <div class="edit-toolbar" id="edit-toolbar" hidden>
+        <label>Scale <input id="edit-scale" type="range" min="0.6" max="1.4" step="0.01"></label>
+        <label>Top <input id="edit-top" type="range" min="-120" max="120" step="1"></label>
+        <label>Left <input id="edit-left" type="range" min="-240" max="240" step="1"></label>
+        <label>Buttons X <input id="edit-buttons-x" type="range" min="-240" max="240" step="1"></label>
+        <label>Buttons Y <input id="edit-buttons-y" type="range" min="-160" max="160" step="1"></label>
+        <label>Art Opacity <input id="edit-art-opacity" type="range" min="0" max="1" step="0.01"></label>
+        <label>Center Opacity <input id="edit-center-opacity" type="range" min="0" max="1" step="0.01"></label>
+        <label>Shell Opacity <input id="edit-shell-opacity" type="range" min="0" max="1" step="0.01"></label>
+        <label>Node X <input id="edit-node-x" type="range" min="-420" max="420" step="1"></label>
+        <label>Node Y <input id="edit-node-y" type="range" min="-420" max="420" step="1"></label>
+        <button class="ghost" data-select-node="stick-left">Left Stick</button>
+        <button class="ghost" data-select-node="stick-right">Right Stick</button>
+        <button class="ghost" data-lock-node="stick-right">Lock Right</button>
+        <button class="ghost" id="rec-dpad">REC DPad</button>
+        <button id="edit-hide-selected" class="ghost">Hide Selected</button>
+        <button id="edit-show-all" class="ghost">Show All</button>
+      </div>
+      <div class="controller-stage">
+        <img class="controller-art" src="/assets/controller-art.png" alt="BlackMamba controller art">
+        <div class="controller-shell">
+          <div class="controller-title">CONTROLLER LIVE</div>
+          <div class="controller-center"></div>
+          <div class="controller-stick left" data-edit-node="stick-left">
+            <div class="controller-stick-cap" id="live-lxcap"></div>
+          </div>
+          <div class="controller-stick right" data-edit-node="stick-right">
+            <div class="controller-stick-cap" id="live-rxcap"></div>
+          </div>
+          <div class="controller-dpad">
+            <div class="controller-dpad-btn up" data-live-button="DPad_Up" data-label=""></div>
+            <div class="controller-dpad-btn down" data-live-button="DPad_Down" data-label=""></div>
+            <div class="controller-dpad-btn left" data-live-button="DPad_Left" data-label=""></div>
+            <div class="controller-dpad-btn right" data-live-button="DPad_Right" data-label=""></div>
+          </div>
+          <div class="controller-face">
+            <div class="controller-face-btn y" data-live-button="Y" data-label="Y">Y</div>
+            <div class="controller-face-btn x" data-live-button="X" data-label="X">X</div>
+            <div class="controller-face-btn b" data-live-button="B" data-label="B">B</div>
+            <div class="controller-face-btn a" data-live-button="A" data-label="A">A</div>
+          </div>
+          <div class="controller-bumpers">
+            <div class="controller-shoulder left" data-live-button="LB" data-label="LB">LB</div>
+            <div class="controller-shoulder right" data-live-button="RB" data-label="RB">RB</div>
+          </div>
+          <div class="controller-triggers">
+            <div class="controller-trigger left" data-live-button="LT" data-label="LT">LT</div>
+            <div class="controller-trigger right" data-live-button="RT" data-label="RT">RT</div>
+          </div>
+          <div class="controller-meta">
+            <div class="controller-meta-btn" data-live-button="Back" data-label="Back">Back</div>
+            <div class="controller-meta-btn" data-live-button="Guide" data-label="Guide">Guide</div>
+            <div class="controller-meta-btn" data-live-button="Start" data-label="Start">Start</div>
+          </div>
+        </div>
+      </div>
+      <div class="live-summary">
+        <div class="live-stat">
+          <span>Frame</span>
+          <strong id="live-frame-count">0</strong>
+        </div>
+        <div class="live-stat">
+          <span>Device</span>
+          <strong id="live-device">--</strong>
+        </div>
+        <div class="live-stat">
+          <span>Updated</span>
+          <strong id="live-updated">--</strong>
+        </div>
+        <div class="live-stat">
+          <span>Events</span>
+          <strong id="live-events-count">0</strong>
+        </div>
+      </div>
+      <div class="live-grid">
+        <div class="live-box">
+          <h3>Buttons</h3>
+          <div id="live-buttons" class="live-buttons"></div>
+        </div>
+        <div class="live-box">
+          <h3>Axes</h3>
+          <div id="live-axes" class="live-axes"></div>
+        </div>
+      </div>
+      <div class="live-box live-events-box">
+        <h3>Recent events</h3>
+        <pre id="live-events">Esperando datos...</pre>
+      </div>
+    </section>
+
     <section class="panel atlas-panel">
       <div class="panel-title">
         <h2>Atlas</h2>

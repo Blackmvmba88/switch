@@ -1,0 +1,24 @@
+{
+  "protocol": "blackmamba.live.status.v0",
+  "bootedAt": "2026-06-14T20:45:14.902Z",
+  "updatedAt": "2026-06-14T20:45:17.947Z",
+  "profilePath": "profiles/rock-candy-wired-controller-for-nintendo-switch-vendor-0e6f-product-0187.normalized.json",
+  "device": {
+    "id": "Rock Candy Wired Controller for Nintendo Switch (Vendor: 0e6f Product: 0187)",
+    "mapping": "standard",
+    "buttons": 14,
+    "axes": 10
+  },
+  "clients": 2,
+  "frameCount": 30,
+  "lastBrowserFrameAt": "2026-06-14T20:45:17.947Z",
+  "browserPolling": "PASS",
+  "staleMs": 0,
+  "lastDevice": {
+    "id": "Rock Candy Wired Controller for Nintendo Switch (Native HID Source)",
+    "index": 0,
+    "mapping": "",
+    "buttons": 17,
+    "axes": 10
+  }
+}

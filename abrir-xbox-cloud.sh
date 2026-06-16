@@ -2,7 +2,7 @@
 set -euo pipefail
 
 PORT="${PORT:-8123}"
-URL="${URL:-https://www.xbox.com/play}"
+URL="${URL:-https://www.xbox.com/en-us/play/games/microsoft-flight-simulator-2024/9p38d19t7lrv}"
 
 echo "Cerrando prueba local en puerto ${PORT}..."
 PIDS="$(lsof -ti tcp:"${PORT}" || true)"

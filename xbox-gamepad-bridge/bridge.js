@@ -32,6 +32,15 @@
     ws: null,
     reconnectTimer: null
   };
+  const nativeCalibration = createStickCalibration();
+  try {
+    const saved = localStorage.getItem("blackmamba_stick_calibration");
+    if (saved) {
+      nativeCalibration.restore(JSON.parse(saved));
+    }
+  } catch (_) {
+    // Start fresh if the saved calibration is malformed.
+  }
   let announceInterval = null;
 
   window.__xboxCloudGamepadBridgeDebug = () => ({
@@ -89,6 +98,109 @@
       pressed: active,
       touched: active,
       value: active ? 1 : 0
+    };
+  }
+
+  function applyDeadzone(value, deadzone = 0.08) {
+    const raw = Number(value || 0);
+    if (!Number.isFinite(raw)) {
+      return 0;
+    }
+    if (Math.abs(raw) < deadzone) {
+      return 0;
+    }
+    const sign = Math.sign(raw);
+    const magnitude = (Math.abs(raw) - deadzone) / (1 - deadzone);
+    return Math.max(-1, Math.min(1, sign * magnitude));
+  }
+
+  function createStickCalibration(options = {}) {
+    const axisNames = ["LX", "LY", "RX", "RY"];
+    const sampleLimit = Number(options.sampleLimit || 32);
+    const captureThreshold = Number(options.captureThreshold || 0.35);
+    const minSamples = Number(options.minSamples || 8);
+    const updateThreshold = Number(options.updateThreshold || 0.015);
+    const maxOffset = Number(options.maxOffset || 0.2);
+    const decay = Number(options.decay || 0.2);
+    const snapThreshold = Number(options.snapThreshold || 0.04);
+    const axes = Object.fromEntries(axisNames.map((name) => [name, { offset: 0, samples: [], idleStreak: 0 }]));
+
+    function clamp(value, min = -1, max = 1) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function round(value, digits = 3) {
+      return Number(Number(value || 0).toFixed(digits));
+    }
+
+    function updateAxis(name, raw) {
+      const axis = axes[name];
+      const value = Number(raw || 0);
+      if (!Number.isFinite(value)) {
+        return { raw: 0, corrected: 0, offset: round(axis.offset), calibrated: false };
+      }
+
+      if (Math.abs(value) <= captureThreshold) {
+        axis.samples.push(value);
+        axis.idleStreak += 1;
+        if (axis.samples.length > sampleLimit) {
+          axis.samples.shift();
+        }
+      } else {
+        axis.samples.length = 0;
+        axis.idleStreak = 0;
+      }
+
+      let calibrated = false;
+      if (axis.samples.length >= minSamples) {
+        const sorted = [...axis.samples].sort((a, b) => a - b);
+        const median = sorted[Math.floor(sorted.length / 2)];
+        if (Math.abs(median) >= updateThreshold) {
+          axis.offset = clamp(axis.offset * (1 - decay) + median * decay, -maxOffset, maxOffset);
+          calibrated = true;
+        }
+        if (axis.idleStreak >= minSamples * 2 && Math.abs(median) < snapThreshold) {
+          axis.offset = 0;
+          calibrated = true;
+        }
+      }
+
+      let corrected = clamp(value - axis.offset);
+      if (Math.abs(corrected) < snapThreshold) {
+        corrected = 0;
+      }
+      return {
+        raw: round(value),
+        corrected: round(corrected),
+        offset: round(axis.offset),
+        calibrated
+      };
+    }
+
+    return {
+      updateAxes(rawAxes = []) {
+        return Object.fromEntries(axisNames.map((name, index) => [name, updateAxis(name, rawAxes[index])]));
+      },
+      validate() {
+        const warnings = [];
+        for (const name of axisNames) {
+          const axis = axes[name];
+          const current = axis.samples.at(-1);
+          if (axis.offset && Math.abs(axis.offset) > 0.08) {
+            warnings.push(`${name} offset=${round(axis.offset, 4)}`);
+          }
+          if (Number.isFinite(current)) {
+            const residual = current - axis.offset;
+            if (Math.abs(current) < captureThreshold && Math.abs(residual) > snapThreshold) {
+              warnings.push(`${name} residual=${round(residual, 4)}`);
+            }
+          }
+        }
+        return warnings;
+      },
+      snapshot() {
+        return Object.fromEntries(axisNames.map((name) => [name, { offset: round(axes[name].offset, 4), samples: axes[name].samples.length }]));
+      }
     };
   }
 
@@ -165,21 +277,22 @@
     const custom = getCustomMapping(pad.id);
     const rawAxes = Array.from(pad.axes || []);
     const axes = [0, 0, 0, 0]; // LX, LY, RX, RY
+    const calibrated = nativeCalibration.updateAxes(rawAxes);
 
     if (custom && custom.axes) {
-      axes[0] = rawAxes[custom.axes[0]] || 0;
-      axes[1] = rawAxes[custom.axes[1]] || 0;
-      axes[2] = rawAxes[custom.axes[2]] || 0;
-      axes[3] = rawAxes[custom.axes[3]] || 0;
+      axes[0] = applyDeadzone(calibrated.LX?.corrected ?? rawAxes[custom.axes[0]]);
+      axes[1] = applyDeadzone(calibrated.LY?.corrected ?? rawAxes[custom.axes[1]]);
+      axes[2] = applyDeadzone(calibrated.RX?.corrected ?? rawAxes[custom.axes[2]]);
+      axes[3] = applyDeadzone(calibrated.RY?.corrected ?? rawAxes[custom.axes[3]]);
     } else {
-      axes[0] = rawAxes[0] || 0;
-      axes[1] = rawAxes[1] || 0;
-      axes[2] = rawAxes[2] || 0;
-      axes[3] = rawAxes[3] || 0;
+      axes[0] = applyDeadzone(calibrated.LX?.corrected ?? rawAxes[0]);
+      axes[1] = applyDeadzone(calibrated.LY?.corrected ?? rawAxes[1]);
+      axes[2] = applyDeadzone(calibrated.RX?.corrected ?? rawAxes[2]);
+      axes[3] = applyDeadzone(calibrated.RY?.corrected ?? rawAxes[3]);
 
       // Heuristic: If RY (axes[3]) is dead but Axis 5 has life, use it.
       if (Math.abs(axes[3]) < 0.01 && rawAxes[5] !== undefined && Math.abs(rawAxes[5]) > 0.1) {
-        axes[3] = rawAxes[5];
+        axes[3] = applyDeadzone(rawAxes[5]);
       }
     }
 
@@ -213,7 +326,15 @@
   }
 
   function semanticAxis(name) {
-    return Number(bridgeState.frame?.axes?.[name]?.value || 0);
+    return applyDeadzone(bridgeState.frame?.axes?.[name]?.value);
+  }
+
+  function persistCalibration() {
+    try {
+      localStorage.setItem("blackmamba_stick_calibration", JSON.stringify(nativeCalibration.serialize()));
+    } catch (_) {
+      // Best-effort only.
+    }
   }
 
   function websocketVirtualPad() {
@@ -300,6 +421,14 @@
           bridgeState.frame = message.frame;
           bridgeState.lastSeen = performance.now();
           bridgeState.lastMessageAt = Date.now();
+          if (message.calibration?.axes) {
+            nativeCalibration.restore({
+              offsets: Object.fromEntries(
+                Object.entries(message.calibration.axes).map(([name, state]) => [name, Number(state?.offset || 0)])
+              )
+            });
+            persistCalibration();
+          }
           announceVirtualPadIfNeeded();
         }
       } catch (error) {
