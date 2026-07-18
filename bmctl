@@ -1,555 +1,441 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env node
+const fs = require("node:fs");
+const path = require("node:path");
+const http = require("node:http");
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DEBUG_PORT="${DEBUG_PORT:-9224}"
-APP_PORT="${BM_APP_PORT:-8147}"
-APP_STATUS="${HOME}/Library/Application Support/BlackMambaInput/reports/live-status.json"
-XCLOUD_STATUS="${HOME}/Library/Application Support/BlackMambaInput/reports/xcloud-bridge-status.json"
-SESSION_STATUS="${HOME}/Library/Application Support/BlackMambaInput/reports/play-sessions.json"
-NETWORK_STATUS="${HOME}/Library/Application Support/BlackMambaInput/reports/network-game-status.json"
-MODE_FILE="${HOME}/Library/Application Support/BlackMambaInput/reports/control-room-mode.json"
-BROWSER_FILE="${HOME}/Library/Application Support/BlackMambaInput/reports/browser-status.json"
-APP_HID_PID_FILE="${HOME}/Library/Application Support/BlackMambaInput/logs/hid-live-source.pid"
-HID_BIN="${ROOT}/.tmp-runtime-test/hid-live-source"
-HID_PID_FILE="${ROOT}/logs/hid-live-source.pid"
+const ROOT = path.resolve(__dirname);
+const STATE_PATH = path.join(ROOT, "reports", "runtime-state.json");
+const API_URL = process.env.BMCTL_API_URL || "http://127.0.0.1:8147";
+const BRIDGE_PATH = path.join(ROOT, "xbox-gamepad-bridge");
+const CONTROLLER_DOCTOR_PATH = path.join(ROOT, "controller-doctor.sh");
+const START_API_SCRIPT = process.env.BMCTL_START_API_SCRIPT || path.join(ROOT, "start-api.sh");
+const PLAY_STACK_SCRIPT = process.env.BMCTL_PLAY_STACK_SCRIPT || path.join(ROOT, "play-xcloud-cdp-bridge.sh");
+const CLOSE_RUNTIME_SCRIPT = process.env.BMCTL_CLOSE_RUNTIME_SCRIPT || path.join(process.env.HOME || "", "Library/Application Support/BlackMambaInput/close-runtime.sh");
+const STOP_API_SCRIPT = process.env.BMCTL_STOP_API_SCRIPT || path.join(ROOT, "stop-api.sh");
+const HTTP_TIMEOUT_MS = Number(process.env.BMCTL_HTTP_TIMEOUT_MS || 5000);
 
-NODE_BIN="${NODE_BIN:-$(command -v node 2>/dev/null || true)}"
-if [[ -z "${NODE_BIN}" ]]; then
-  for candidate in /opt/homebrew/bin/node /usr/local/bin/node; do
-    if [[ -x "${candidate}" ]]; then
-      NODE_BIN="${candidate}"
-      break
-    fi
-  done
-fi
-if [[ -z "${NODE_BIN}" ]]; then
-  NODE_BIN="node"
-fi
-
-usage() {
-  cat <<'HELP'
-BlackMamba Input Runtime metacomandos
-
-Uso:
-  ./bmctl play              Abre Atlas si esta preferido; si no, abre xCloud con puente CDP + HID source
-  ./bmctl wake              Levanta Chrome CDP/xCloud sin tocar daemons
-  ./bmctl atlas             Alias base para Atlas; igual que ./bmctl atlas-jugar
-  ./bmctl atlas-open        Alias alterno para abrir Atlas y jugar
-  ./bmctl atlas-run         Alias alterno para arrancar Atlas y jugar
-  ./bmctl atlas-game        Alias alterno para abrir Atlas y jugar
-  ./bmctl atlas-jugar       Alias directo para abrir Atlas y jugar
-  ./bmctl atlas-first       Marca Atlas como camino preferido y abre la sesión
-  ./bmctl jugar             Alias corto para ./bmctl atlas-jugar
-  ./bmctl go                Alias aun mas corto para ./bmctl atlas-jugar
-  ./bmctl entrar            Alias corto estilo natural para ./bmctl atlas-jugar
-  ./bmctl x                 Alias minimal para ./bmctl atlas-jugar
-  ./bmctl play-atlas        Alias descriptivo para ./bmctl atlas-jugar
-  ./bmctl estado            Alias corto para ./bmctl atlas-status
-  ./bmctl infra             Abre el panel de runtime y salud
-  ./bmctl reinject          Reinyecta el Xbox bridge; si no hay target, abre xCloud
-  ./bmctl verify            Verifica Xbox virtual; si no hay target, abre xCloud
-  ./bmctl axes              Muestra LX/LY/RX/RY en vivo desde xCloud
-  ./bmctl buttons           Muestra palancas + LB/RB/LT/RT/Back/Start en vivo
-  ./bmctl press B 500       Pulso virtual Xbox al bridge live
-  ./bmctl app               Abre BlackMamba Control Room
-  ./bmctl app-stop          Detiene BlackMamba Control Room
-  ./bmctl app-why           Diagnostica por que Control Room se apago
-  ./bmctl status            Estado live-monitor + HID source + xCloud tab
-  ./bmctl browser-status    Estado del navegador/CDP y preferencia Atlas/Chrome
-  ./bmctl atlas-status      Estado de Atlas y URL objetivo
-  ./bmctl sessions          Historial y promedio de sesiones de juego
-  ./bmctl doctor            Diagnóstico HID/xCloud compatibility
-  ./bmctl doctor-advanced   Diagnóstico de estabilidad daemon/CDP/bridge/logs
-  ./bmctl ram               Muestra presión de memoria y procesos BlackMamba
-  ./bmctl recycle           Reinicia daemons BlackMamba y mata HID legacy del repo
-  ./bmctl game-on           Activa modo juego: auto-reabre xCloud si CDP cae
-  ./bmctl game-off          Desactiva modo juego: daemon no intrusivo
-  ./bmctl mode-game         Guarda el preset de Control Room para Game On
-  ./bmctl mode-manual       Guarda el preset de Control Room para modo manual
-  ./bmctl mode-fun          Guarda el preset de Control Room para modo fun
-  ./bmctl net-on            Activa optimizador/monitor de red para cloud gaming
-  ./bmctl net-wired         Modo cable: apaga Wi-Fi y reinicia monitor de red
-  ./bmctl net-off           Detiene optimizador de red
-  ./bmctl net-status        Estado de latencia, jitter y perdida
-  ./bmctl close             Cierra xCloud/CDP/HID/live-monitor y libera RAM
-  ./bmctl shutdown          Cierra todo, incluyendo Control Room
-  ./bmctl hid               Arranca fuente nativa HID -> live-monitor
-  ./bmctl install-hid-agent Instala LaunchAgent persistente para HID
-  ./bmctl daemon            Instala daemon completo: live + HID + xCloud bridge
-  ./bmctl install-xcloud-agent Instala solo daemon de xCloud bridge
-  ./bmctl uninstall-xcloud-agent Quita daemon de xCloud bridge
-  ./bmctl stop-hid          Detiene fuente nativa HID
-  ./bmctl lab               Abre el laboratorio visual de gamepad
-  ./bmctl map               Abre el mapeador visual BlackMamba (XPout style)
-  ./bmctl view              Abre el visualizador live de telemetría (Neon)
-  ./bmctl fortnite-map      Mapea ABXY por posicion fisica Xbox para Fortnite
-  ./bmctl switch-map        Restaura ABXY por etiquetas Nintendo/Switch
-  ./bmctl test              Corre pruebas offline/live smoke
-  ./bmctl save              Guarda commit local del runtime
-  ./bmctl logs              Muestra logs recientes
-  ./bmctl clean             Limpia caches temporales de Chrome del runtime
-  ./bmctl repo-doctor       Explica que es codigo, perfil, cache y runtime local
-  ./bmctl repo-clean        Cierra runtime y limpia caches repo-locales seguras
-  ./bmctl preflight         Valida dependencias antes de instalar/release
-  ./bmctl package-beta      Genera tar.gz beta limpio desde git
-
-Variables útiles:
-  URL=https://www.xbox.com/es-MX/play ./bmctl play
-  DEBUG_PORT=9224 ./bmctl verify
-HELP
+function loadState() {
+  try {
+    if (!fs.existsSync(STATE_PATH)) {
+      return null;
+    }
+    return JSON.parse(fs.readFileSync(STATE_PATH, "utf8"));
+  } catch {
+    return null;
+  }
 }
 
-chrome_tabs() {
-  "${NODE_BIN}" -e "(async()=>{try{const tabs=await (await fetch('http://127.0.0.1:${DEBUG_PORT}/json')).json(); console.log(tabs.map((t,i)=>i+' '+t.type+' '+t.title+' '+t.url).join('\\n'));}catch(e){console.log('CDP no disponible en puerto ${DEBUG_PORT}')}})()"
+function saveState(state) {
+  fs.mkdirSync(path.dirname(STATE_PATH), { recursive: true });
+  fs.writeFileSync(STATE_PATH, `${JSON.stringify(state, null, 2)}\n`);
 }
 
-browser_status() {
-  local preferred="${BROWSER_APP:-auto}"
-  local chrome_path="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-  local atlas_path="/Applications/ChatGPT Atlas.app/Contents/MacOS/ChatGPT Atlas"
-  local selected="none"
-  if [[ -n "${CHROME_BIN:-}" && -x "${CHROME_BIN}" ]]; then
-    selected="${CHROME_BIN}"
-  elif [[ "${preferred}" == "Google Chrome" && -x "${chrome_path}" ]]; then
-    selected="${chrome_path}"
-  elif [[ "${preferred}" == "ChatGPT Atlas" || "${preferred}" == "Atlas" ]]; then
-    if [[ -x "${atlas_path}" ]]; then
-      selected="${atlas_path}"
-    elif [[ -x "${chrome_path}" ]]; then
-      selected="${chrome_path}"
-    fi
-  elif [[ -x "${chrome_path}" ]]; then
-    selected="${chrome_path}"
-  elif [[ -x "${atlas_path}" ]]; then
-    selected="${atlas_path}"
-  fi
-
-  echo "== browser status =="
-  echo "preferred=${preferred}"
-  echo "chrome=$([[ -x "${chrome_path}" ]] && echo yes || echo no)"
-  echo "atlas=$([[ -x "${atlas_path}" ]] && echo yes || echo no)"
-  echo "selected=${selected}"
-  if [[ -f "${HOME}/Library/Application Support/BlackMambaInput/reports/xcloud-bridge-status.json" ]]; then
-    echo
-    "${NODE_BIN}" -e "const fs=require('fs'); const p=process.argv[1]; const data=JSON.parse(fs.readFileSync(p,'utf8')); console.log(JSON.stringify({state:data.state, cdp:data.cdp, browserApp:data.browserApp, browserName:data.browserName, error:data.error}, null, 2));" "${HOME}/Library/Application Support/BlackMambaInput/reports/xcloud-bridge-status.json" 2>/dev/null || true
-  fi
-  if [[ -f "${PROFILE_DIR}/browser-status.json" ]]; then
-    echo
-    cat "${PROFILE_DIR}/browser-status.json"
-  fi
+function ensureState() {
+  const state = loadState();
+  if (state) {
+    return state;
+  }
+  const fallback = {
+    version: "1.0",
+    bootedAt: new Date().toISOString(),
+    mode: "standby",
+    gameMode: {
+      state: "idle",
+      connected: false,
+      graceEndsAt: null,
+      lastTransitionAt: new Date().toISOString(),
+      lastEvent: null
+    },
+    jobs: {},
+    warnings: [],
+    metrics: {
+      restarts: 0,
+      events: 0
+    }
+  };
+  saveState(fallback);
+  return fallback;
 }
 
-atlas_status() {
-  local target_url="https://www.xbox.com/play"
-  local atlas_app="/Applications/ChatGPT Atlas.app"
-  local atlas_installed
-  local atlas_state="unknown"
-  local atlas_foreground="unknown"
-  echo "== atlas status =="
-  if [[ -d "${atlas_app}" ]]; then
-    atlas_installed="yes"
-  else
-    atlas_installed="no"
-  fi
-  echo "installed=${atlas_installed}"
-  echo "target=${target_url}"
-  if [[ -f "${HOME}/Library/Application Support/BlackMambaInput/reports/browser-status.json" ]]; then
-    echo
-    atlas_state="$("${NODE_BIN}" -e "const fs=require('fs'); const data=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); process.stdout.write(data.state || 'unknown');" "${HOME}/Library/Application Support/BlackMambaInput/reports/browser-status.json" 2>/dev/null || true)"
-    "${NODE_BIN}" -e "const fs=require('fs'); const data=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); console.log(JSON.stringify(data, null, 2));" "${HOME}/Library/Application Support/BlackMambaInput/reports/browser-status.json" 2>/dev/null || true
-  fi
-  if [[ -f "${HOME}/Library/Application Support/BlackMambaInput/reports/xcloud-bridge-status.json" ]]; then
-    echo
-    "${NODE_BIN}" -e "const fs=require('fs'); const data=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); console.log(JSON.stringify({state:data.state, browserApp:data.browserApp, browserName:data.browserName, cdp:data.cdp, error:data.error}, null, 2));" "${HOME}/Library/Application Support/BlackMambaInput/reports/xcloud-bridge-status.json" 2>/dev/null || true
-  fi
-  if [[ "${atlas_installed}" == "yes" ]]; then
-    atlas_foreground="$(osascript -e 'tell application "System Events" to get name of first application process whose frontmost is true' 2>/dev/null || true)"
-  fi
-  echo
-  if [[ -n "${atlas_foreground}" ]]; then
-    echo "foreground=${atlas_foreground}"
-    if [[ "${atlas_foreground}" == *"Atlas"* ]]; then
-      echo "focus=atlas"
-      echo "action=ya puedes entrar al juego"
-    else
-      echo "focus=other"
-      echo "action=lleva Atlas al frente para seguir"
-    fi
-  fi
-  if [[ "${atlas_installed}" == "no" ]]; then
-    echo "readiness=missing"
-    echo "note=Atlas no esta instalado; usa xCloud o instala ChatGPT Atlas."
-  elif [[ "${atlas_state}" == "opened" ]]; then
-    echo "readiness=ready"
-    echo "note=Atlas esta abierto y listo para entrar al juego manualmente."
-  elif [[ "${atlas_state}" == "preferred" ]]; then
-    echo "readiness=launching"
-    echo "note=Atlas esta marcando preferencia, falta abrir la ventana."
-  else
-    echo "readiness=unknown"
-    echo "note=Atlas esta instalado, pero no tengo confirmacion de una ventana abierta."
-  fi
+function requestJson(pathname) {
+  return new Promise((resolve) => {
+    const req = http.get(new URL(pathname, API_URL), (res) => {
+      let raw = "";
+      res.setEncoding("utf8");
+      res.on("data", (chunk) => (raw += chunk));
+      res.on("end", () => {
+        try {
+          resolve({ ok: res.statusCode >= 200 && res.statusCode < 300, status: res.statusCode, body: JSON.parse(raw || "{}") });
+        } catch {
+          resolve({ ok: false, status: res.statusCode, body: { raw } });
+        }
+      });
+    });
+    req.setTimeout(HTTP_TIMEOUT_MS, () => {
+      req.destroy(new Error("request_timeout"));
+    });
+    req.on("error", (error) => resolve({ ok: false, status: 0, error: error.message }));
+  });
 }
 
-kill_legacy_repo_hid() {
-  local pids=()
-  while IFS= read -r pid; do
-    [[ -n "${pid}" ]] && pids+=("${pid}")
-  done < <(pgrep -f "${ROOT}/[.]tmp-runtime-test/hid-live-source|bash -c .*${ROOT}/[.]tmp-runtime-test/hid-live-source" || true)
-
-  if [[ "${#pids[@]}" -gt 0 ]]; then
-    for pid in "${pids[@]}"; do
-      pkill -P "${pid}" >/dev/null 2>&1 || true
-      kill "${pid}" >/dev/null 2>&1 || true
-    done
-    echo "HID legacy del repo detenido: ${pids[*]}"
-  fi
+function requestJsonWithMethod(pathname, method = "GET", body = null) {
+  return new Promise((resolve) => {
+    const url = new URL(pathname, API_URL);
+    const req = http.request(url, {
+      method,
+      headers: body ? { "content-type": "application/json" } : {}
+    }, (res) => {
+      let raw = "";
+      res.setEncoding("utf8");
+      res.on("data", (chunk) => (raw += chunk));
+      res.on("end", () => {
+        try {
+          resolve({ ok: res.statusCode >= 200 && res.statusCode < 300, status: res.statusCode, body: JSON.parse(raw || "{}") });
+        } catch {
+          resolve({ ok: false, status: res.statusCode, body: { raw } });
+        }
+      });
+    });
+    req.setTimeout(HTTP_TIMEOUT_MS, () => {
+      req.destroy(new Error("request_timeout"));
+    });
+    req.on("error", (error) => resolve({ ok: false, status: 0, error: error.message }));
+    if (body) {
+      req.write(JSON.stringify(body));
+    }
+    req.end();
+  });
 }
 
-kick_agent() {
-  local label="$1"
-  launchctl kickstart -k "gui/$(id -u)/${label}" >/dev/null 2>&1 &
-  local pid="$!"
-  local waited=0
-  while kill -0 "${pid}" >/dev/null 2>&1; do
-    if [[ "${waited}" -ge 4 ]]; then
-      kill "${pid}" >/dev/null 2>&1 || true
-      echo "Aviso: kickstart timeout para ${label}; launchd lo mantiene con KeepAlive."
-      return 0
-    fi
-    sleep 1
-    waited=$((waited + 1))
-  done
-  wait "${pid}" >/dev/null 2>&1 || true
+function runScript(scriptPath, args = []) {
+  return new Promise((resolve) => {
+    if (!fs.existsSync(scriptPath)) {
+      resolve({ ok: false, code: 127, stdout: "", stderr: "missing_script" });
+      return;
+    }
+    const child = require("node:child_process").execFile("/bin/bash", [scriptPath, ...args], { cwd: ROOT, timeout: 30000 }, (error, stdout, stderr) => {
+      resolve({
+        ok: !error,
+        code: error?.code ?? 0,
+        stdout: String(stdout || ""),
+        stderr: String(stderr || "")
+      });
+    });
+    return child;
+  });
 }
 
-set_control_room_mode() {
-  local mode="$1"
-  mkdir -p "$(dirname "${MODE_FILE}")"
-  cat >"${MODE_FILE}" <<EOF
-{"mode":"${mode}","updatedAt":"$(date -u +%Y-%m-%dT%H:%M:%SZ)"}
-EOF
-  echo "Control Room preset guardado: ${mode}"
+function killMatching(pattern) {
+  return new Promise((resolve) => {
+    const child_process = require("node:child_process");
+    let pids = [];
+    try {
+      pids = child_process.execFileSync("/usr/bin/pgrep", ["-f", pattern], { encoding: "utf8" })
+        .split("\n")
+        .map((value) => value.trim())
+        .filter(Boolean);
+    } catch (error) {
+      if (error.status !== 1) {
+        resolve({ ok: false, pattern, pids: [], error: error.message });
+        return;
+      }
+    }
+    const failed = [];
+    for (const pid of pids) {
+      try {
+        child_process.execFileSync("/bin/kill", ["-TERM", pid], { stdio: "ignore" });
+      } catch (error) {
+        failed.push({ pid, error: error.message });
+      }
+    }
+    resolve({ ok: failed.length === 0, pattern, pids, failed });
+  });
 }
 
-set_browser_status() {
-  local browser="$1"
-  local state="$2"
-  local message="$3"
-  local preference="${4:-}"
-  mkdir -p "$(dirname "${BROWSER_FILE}")"
-  cat >"${BROWSER_FILE}" <<EOF
-{"updatedAt":"$(date -u +%Y-%m-%dT%H:%M:%SZ)","browser":"${browser}","state":"${state}","preference":"${preference}","message":"${message}"}
-EOF
+async function ensureApiRunning() {
+  const health = await requestJson("/health");
+  if (health.ok) {
+    return health;
+  }
+  const started = await runScript(START_API_SCRIPT, []);
+  if (!started.ok) {
+    return { ok: false, error: started.stderr || started.stdout || "api_start_failed" };
+  }
+  return requestJson("/health");
 }
 
-browser_preference() {
-  if [[ -f "${BROWSER_FILE}" ]]; then
-    "${NODE_BIN}" -e "const fs=require('fs'); const p=process.argv[1]; try { const d=JSON.parse(fs.readFileSync(p,'utf8')); process.stdout.write(d.preference || ''); } catch (_) {}" "${BROWSER_FILE}" 2>/dev/null || true
-  fi
+async function ensurePlayStack() {
+  return runScript(PLAY_STACK_SCRIPT, []);
 }
 
-open_atlas_safe() {
-  if [[ -x "/Applications/ChatGPT Atlas.app/Contents/MacOS/ChatGPT Atlas" ]]; then
-    set_browser_status "ChatGPT Atlas" "preferred" "Atlas marcado como camino preferido." "atlas"
-    echo "Atlas preferido: usando el camino Atlas para abrir la sesion."
-    open -na "ChatGPT Atlas" --args "https://www.xbox.com/play"
-    osascript -e 'tell application "ChatGPT Atlas" to activate' >/dev/null 2>&1 || true
-    set_browser_status "ChatGPT Atlas" "opened" "Atlas abierto sin CDP; usa el Control Room para el resto." "atlas"
-    echo "Atlas abierto sin CDP en https://www.xbox.com/play."
-  else
-    echo "No encuentro ChatGPT Atlas en /Applications."
-    exit 1
-  fi
+function summarizeRuntime(runtime) {
+  return {
+    state: runtime?.state || null,
+    active: runtime?.active === true,
+    bootedAt: runtime?.bootedAt || null,
+    uptimeMs: runtime?.uptimeMs ?? null
+  };
 }
 
-case "${1:-help}" in
-  play)
-    if [[ -x "/Applications/ChatGPT Atlas.app/Contents/MacOS/ChatGPT Atlas" ]]; then
-      open_atlas_safe
-    else
-      "${ROOT}/play-xcloud-cdp-bridge.sh"
-    fi
-    ;;
-  wake)
-    "${ROOT}/play-xcloud-cdp-bridge.sh"
-    ;;
-  atlas|atlas-play|atlas-open|atlas-run|atlas-game|jugar|atlas-go|go|entrar|x|play-atlas)
-    open_atlas_safe
-    ;;
-  atlas-jugar|atlas-play-now)
-    open_atlas_safe
-    ;;
-  atlas-first|atlas-preferred)
-    open_atlas_safe
-    ;;
-  reinject|reinyecta)
-    if [[ "$(browser_preference)" == "atlas" ]]; then
-      echo "Atlas no usa reinject CDP; usa ./bmctl atlas o ./bmctl atlas-first para reabrir Atlas."
-      exit 0
-    fi
-    "${ROOT}/start-hid-live-source.sh"
-    if ! REUSE_XCLOUD=1 node "${ROOT}/runtime/inject-bridge-cdp.js" "${DEBUG_PORT}" 2>/tmp/blackmamba-bmctl-reinject.err; then
-      echo "CDP/xCloud no esta activo en puerto ${DEBUG_PORT}; abriendo sesion nueva..."
-      "${ROOT}/play-xcloud-cdp-bridge.sh"
-    fi
-    ;;
-  verify|verifica)
-    if ! VERIFY_ONLY=1 node "${ROOT}/runtime/inject-bridge-cdp.js" "${DEBUG_PORT}" 2>/tmp/blackmamba-bmctl-verify.err; then
-      echo "CDP/xCloud no esta activo en puerto ${DEBUG_PORT}; abriendo sesion nueva y reintentando..."
-      "${ROOT}/play-xcloud-cdp-bridge.sh"
-      sleep 2
-      VERIFY_ONLY=1 node "${ROOT}/runtime/inject-bridge-cdp.js" "${DEBUG_PORT}"
-    fi
-    ;;
-  axes|palancas|buttons|botones)
-    "${ROOT}/start-hid-live-source.sh"
-    node "${ROOT}/runtime/watch-virtual-axes.js" "${DEBUG_PORT}" "${DURATION_MS:-15000}"
-    ;;
-  press|pulse)
-    node "${ROOT}/runtime/send-virtual-input.js" "${2:-}" "${3:-500}"
-    ;;
-  app|ui|control-room)
-    mkdir -p "${ROOT}/logs"
-    if ! curl -fsS "http://127.0.0.1:${APP_PORT}/api/status" >/dev/null 2>&1; then
-      "${ROOT}/install-control-room-agent.sh" >/dev/null
-      for _ in {1..30}; do
-        if curl -fsS "http://127.0.0.1:${APP_PORT}/api/status" >/dev/null 2>&1; then
-          break
-        fi
-        sleep 0.2
-      done
-    fi
-    open "http://127.0.0.1:${APP_PORT}"
-    echo "BlackMamba Control Room: http://127.0.0.1:${APP_PORT}"
-    ;;
-  app-stop|ui-stop|control-room-stop)
-    "${ROOT}/close-runtime.sh" --include-app
-    "${ROOT}/uninstall-control-room-agent.sh"
-    ;;
-  app-why|ui-why|control-room-why)
-    echo "== launchctl =="
-    launchctl print "gui/$(id -u)/com.blackmamba.control-room" 2>&1 | sed -n '1,180p' || true
-    echo
-    echo "== lifecycle =="
-    tail -n 80 "${HOME}/Library/Application Support/BlackMambaInput/logs/control-room.lifecycle.log" 2>/dev/null || true
-    echo
-    echo "== stderr =="
-    tail -n 80 "${HOME}/Library/Application Support/BlackMambaInput/logs/control-room.err.log" 2>/dev/null || true
-    echo
-    echo "== endpoint =="
-    curl -fsS "http://127.0.0.1:${APP_PORT}/api/status" 2>&1 | head -c 1200 || true
-    echo
-    ;;
-  setup)
-    echo "== Configurando BlackMamba Runtime =="
-    "${ROOT}/install-live-monitor-agent.sh"
-    "${ROOT}/install-hid-live-source-agent.sh"
-    "${ROOT}/install-xcloud-bridge-agent.sh"
-    "${ROOT}/instalar-puente-xbox.sh"
-    echo "Listo. Reinicia Chrome para activar la extension."
-    ;;
-  daemon)
-    "${ROOT}/install-live-monitor-agent.sh"
-    "${ROOT}/install-hid-live-source-agent.sh"
-    "${ROOT}/install-xcloud-bridge-agent.sh"
-    ;;
-  status)
-    echo "== live status =="
-    if [[ -f "${APP_STATUS}" ]]; then sed -n '1,160p' "${APP_STATUS}"; else echo "sin live-status"; fi
-    echo
-    echo "== hid source =="
-    HID_PID="$(pgrep -f "hid-live-source-agent.sh|[.]tmp-runtime-test/hid-live-source|BlackMambaInput/.tmp-runtime-test/hid-live-source" | head -n 1 || true)"
-    if [[ -n "${HID_PID}" ]]; then
-      echo "hid-live-source running pid=${HID_PID}"
-    else
-      echo "hid-live-source stopped (corre ./bmctl hid)"
-    fi
-    echo
-    echo "== monitor =="
-    MONITOR_PID="$(pgrep -f "live-monitor.js --port 8137|runtime/live-monitor.js" | head -n 1 || true)"
-    if [[ -n "${MONITOR_PID}" ]]; then
-      echo "live-monitor running pid=${MONITOR_PID}"
-    else
-      echo "live-monitor stopped (se inicia con ./bmctl play)"
-    fi
-    echo
-    echo "== xcloud bridge daemon =="
-    XCLOUD_PID="$(pgrep -f "xcloud-bridge-agent.js" | head -n 1 || true)"
-    if [[ -n "${XCLOUD_PID}" ]]; then
-      echo "xcloud-bridge-agent running pid=${XCLOUD_PID}"
-    else
-      echo "xcloud-bridge-agent stopped (corre ./bmctl daemon)"
-    fi
-    if [[ -f "${XCLOUD_STATUS}" ]]; then sed -n '1,80p' "${XCLOUD_STATUS}"; fi
-    if [[ -f "${SESSION_STATUS}" ]]; then
-      echo
-      echo "== play sessions =="
-      "${NODE_BIN}" -e "const fs=require('fs'); const data=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); console.log(JSON.stringify(data.summary||{}, null, 2));" "${SESSION_STATUS}" 2>/dev/null || true
-    fi
-    if [[ -f "${NETWORK_STATUS}" ]]; then
-      echo
-      echo "== network game mode =="
-      "${NODE_BIN}" -e "const fs=require('fs'); const data=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); console.log(JSON.stringify({mode:data.mode, quality:data.quality, route:data.route, optimizations:data.optimizations}, null, 2));" "${NETWORK_STATUS}" 2>/dev/null || true
-    fi
-    echo
-    echo "== chrome tabs =="
-    chrome_tabs
-    ;;
-  browser-status|browser|browser-doctor)
-    browser_status
-    ;;
-  atlas-status|atlas-doctor|estado)
-    atlas_status
-    ;;
-  infra)
-    browser_status
-    ;;
-  sessions|session-history|play-sessions)
-    if [[ -f "${SESSION_STATUS}" ]]; then
-      sed -n '1,220p' "${SESSION_STATUS}"
-    else
-      echo "Sin historial todavia. Se crea cuando cierras una sesion larga y el agente apaga el runtime."
-    fi
-    ;;
-  doctor)
-    "${ROOT}/controller-doctor.sh" doctor
-    ;;
-  doctor-advanced|doctor2)
-    "${NODE_BIN}" "${ROOT}/runtime/advanced-doctor.js"
-    ;;
-  ram|memory)
-    echo "== memoria del sistema =="
-    memory_pressure | tail -n 8
-    echo
-    echo "== procesos BlackMamba =="
-    ps -axo pid,ppid,rss,command | rg -i 'BlackMambaInput|live-monitor|hid-live-source|xcloud-bridge' || true
-    ;;
-  recycle|restart-runtime)
-    echo "== reciclando runtime BlackMamba =="
-    kill_legacy_repo_hid
-    "${ROOT}/install-live-monitor-agent.sh" >/dev/null
-    "${ROOT}/install-hid-live-source-agent.sh" >/dev/null
-    kick_agent "com.blackmamba.live-monitor"
-    kick_agent "com.blackmamba.hid-live-source"
-    kick_agent "com.blackmamba.xcloud-bridge"
-    echo "Runtime reciclado. Para jugar: ./bmctl wake"
-    ;;
-  game-on|gaming-on)
-    echo "== modo juego ON =="
-    "${NODE_BIN}" "${ROOT}/runtime/network-game-mode.js" start || true
-    if ! AUTO_OPEN_XCLOUD=1 "${ROOT}/install-xcloud-bridge-agent.sh" >/dev/null; then
-      echo "Aviso: no pude activar el daemon xCloud; usando arranque directo."
-    fi
-    "${ROOT}/play-xcloud-cdp-bridge.sh"
-    echo "Modo juego activo: el daemon reabre/reinyecta si Chrome CDP cae."
-    ;;
-  game-off|gaming-off)
-    echo "== modo juego OFF =="
-    AUTO_OPEN_XCLOUD=0 "${ROOT}/install-xcloud-bridge-agent.sh" >/dev/null
-    "${NODE_BIN}" "${ROOT}/runtime/network-game-mode.js" stop || true
-    echo "Modo no intrusivo activo: xCloud solo abre con ./bmctl wake."
-    ;;
-  mode-game|mode-on)
-    set_control_room_mode "game"
-    ;;
-  mode-manual|mode-human)
-    set_control_room_mode "manual"
-    ;;
-  mode-fun|mode-funny)
-    set_control_room_mode "fun"
-    ;;
-  net-on|network-on)
-    "${NODE_BIN}" "${ROOT}/runtime/network-game-mode.js" start
-    ;;
-  net-wired|wired|cable)
-    "${NODE_BIN}" "${ROOT}/runtime/network-game-mode.js" wired
-    ;;
-  net-off|network-off)
-    "${NODE_BIN}" "${ROOT}/runtime/network-game-mode.js" stop
-    ;;
-  net-status|network-status)
-    "${NODE_BIN}" "${ROOT}/runtime/network-game-mode.js" status
-    ;;
-  close|close-game|stop-game|cerrar)
-    "${ROOT}/close-runtime.sh"
-    ;;
-  shutdown|quit|salir|kill-all)
-    "${ROOT}/close-runtime.sh" --include-app
-    ;;
-  hid)
-    "${ROOT}/start-hid-live-source.sh"
-    ;;
-  install-hid-agent)
-    "${ROOT}/install-hid-live-source-agent.sh"
-    ;;
-  install-xcloud-agent)
-    "${ROOT}/install-xcloud-bridge-agent.sh"
-    ;;
-  uninstall-xcloud-agent)
-    "${ROOT}/uninstall-xcloud-bridge-agent.sh"
-    ;;
-  stop-hid)
-    "${ROOT}/stop-hid-live-source.sh"
-    ;;
-  lab)
-    open "file://${ROOT}/gamepad-test/index.html"
-    ;;
-  map)
-    open "file://${ROOT}/gamepad-test/mapper.html"
-    ;;
-  view)
-    open "file://${ROOT}/gamepad-test/visualizer.html"
-    ;;
-  fortnite-map)
-    "${NODE_BIN}" "${ROOT}/runtime/apply-face-layout.js" xbox-physical
-    launchctl kickstart -k "gui/$(id -u)/com.blackmamba.live-monitor" >/dev/null 2>&1 || true
-    echo "Perfil Fortnite/Xbox aplicado. Si xCloud ya estaba abierto: ./bmctl reinject"
-    ;;
-  switch-map)
-    "${NODE_BIN}" "${ROOT}/runtime/apply-face-layout.js" switch-labels
-    launchctl kickstart -k "gui/$(id -u)/com.blackmamba.live-monitor" >/dev/null 2>&1 || true
-    echo "Perfil Nintendo/Switch aplicado. Si xCloud ya estaba abierto: ./bmctl reinject"
-    ;;
-  test)
-    "${ROOT}/test-runtime.sh"
-    ;;
-  logs)
-    echo "== hid-live-source =="
-    tail -n 60 "${ROOT}/logs/hid-live-source.log" 2>/dev/null || true
-    echo
-    echo "== live-monitor =="
-    tail -n 40 "${HOME}/Library/Application Support/BlackMambaInput/logs/live-events.jsonl" 2>/dev/null || true
-    echo
-    echo "== xcloud-bridge-agent =="
-    tail -n 80 "${HOME}/Library/Application Support/BlackMambaInput/logs/xcloud-bridge-agent.err.log" 2>/dev/null || true
-    ;;
-  clean)
-    rm -rf /tmp/blackmamba-xcloud-bridge-profile /tmp/blackmamba-xcloud-bridge-verify-profile
-    echo "Limpieza lista. No borre /tmp/blackmamba-xcloud-cdp-profile para no romper la sesion activa."
-    ;;
-  repo-doctor|repo-status|hygiene)
-    "${ROOT}/repo-hygiene.sh" report
-    ;;
-  repo-clean|optimize-repo)
-    "${ROOT}/repo-hygiene.sh" --apply
-    ;;
-  preflight|doctor-preflight)
-    "${ROOT}/doctor-preflight.sh"
-    ;;
-  package-beta|release-beta)
-    "${ROOT}/package-beta.sh"
-    ;;
-  save)
-    git add -A
-    git commit -m "Save BlackMamba input runtime" || true
-    ;;
-  -h|--help|help)
-    usage
-    ;;
-  *)
-    usage
-    exit 1
-    ;;
-esac
+function frontmostApp() {
+  return new Promise((resolve) => {
+    require("node:child_process").execFile("/usr/bin/osascript", [
+      "-e",
+      'tell application "System Events" to get name of first application process whose frontmost is true'
+    ], { timeout: 3000 }, (error, stdout) => {
+      resolve(error ? "" : String(stdout || "").trim());
+    });
+  });
+}
+
+function activateApp(appName) {
+  return new Promise((resolve) => {
+    require("node:child_process").execFile("/usr/bin/osascript", [
+      "-e",
+      `tell application "${appName}" to activate`
+    ], { timeout: 5000 }, (error, stdout, stderr) => {
+      resolve({ ok: !error, stdout: String(stdout || "").trim(), stderr: String(stderr || "").trim() });
+    });
+  });
+}
+
+async function focusGameWindow() {
+  const xcloudStatusPath = path.join(process.env.HOME || "", "Library/Application Support/BlackMambaInput/reports/xcloud-bridge-status.json");
+  let browserPreference = "";
+  try {
+    if (fs.existsSync(xcloudStatusPath)) {
+      const status = JSON.parse(fs.readFileSync(xcloudStatusPath, "utf8"));
+      browserPreference = String(status.browserApp || "").trim();
+    }
+  } catch {
+    browserPreference = "";
+  }
+  const browserChoices = browserPreference === "ChatGPT Atlas"
+    ? ["ChatGPT Atlas", "Google Chrome"]
+    : ["Google Chrome", "ChatGPT Atlas"];
+  for (const appName of browserChoices) {
+    const activated = await activateApp(appName);
+    if (!activated.ok) {
+      continue;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    const current = await frontmostApp();
+    if (new RegExp(appName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(current)) {
+      return { ok: true, app: current || appName };
+    }
+  }
+  return { ok: false, app: await frontmostApp() };
+}
+
+async function main() {
+  const command = process.argv[2];
+  if (!command || ["status", "doctor", "verify", "ready", "focus", "open", "work", "play", "close"].indexOf(command) === -1) {
+    console.error("usage: bmctl <status|doctor|verify|ready|focus|open|work|play|close>");
+    process.exit(2);
+  }
+
+  if (command === "status") {
+    const state = ensureState();
+    if (!state) {
+      console.log("runtime: unavailable");
+      process.exit(1);
+    }
+    console.log(JSON.stringify({ ok: true, runtime: state.mode, gameMode: state.gameMode }, null, 2));
+    process.exit(0);
+  }
+
+  if (command === "doctor") {
+    const state = ensureState();
+    const checks = [];
+    checks.push({ name: "runtime-state", status: state ? "ok" : "error" });
+    checks.push({ name: "api-server", status: await requestJson("/health").then((r) => (r.ok ? "ok" : "error")) });
+    checks.push({ name: "control-detected", status: state?.gameMode?.connected ? "ok" : "warning" });
+    checks.push({ name: "game-bridge", status: fs.existsSync(BRIDGE_PATH) ? "ok" : "warning" });
+    checks.push({ name: "controller-doctor", status: fs.existsSync(CONTROLLER_DOCTOR_PATH) ? "ok" : "warning" });
+    console.log(JSON.stringify({ ok: checks.every((c) => c.status !== "error"), checks }, null, 2));
+    process.exit(checks.some((c) => c.status === "error") ? 1 : 0);
+  }
+
+  if (command === "verify") {
+    const health = await requestJson("/health");
+    const runtime = await requestJson("/api/v1/runtime");
+    const ok = health.ok && runtime.ok && runtime.body?.runtime?.active === true;
+    console.log(JSON.stringify({ ok, health: health.body, runtime: runtime.body }, null, 2));
+    process.exit(ok ? 0 : 1);
+  }
+
+  if (command === "focus") {
+    const result = await focusGameWindow();
+    const frontmost = await frontmostApp();
+    const ok = Boolean(result.ok);
+    console.log(JSON.stringify({
+      ok,
+      focused: result.ok,
+      frontmostApp: frontmost || null,
+      targetApp: result.app || null
+    }, null, 2));
+    process.exit(ok ? 0 : 1);
+  }
+
+  if (command === "ready") {
+    const health = await requestJson("/health");
+    const runtime = await requestJson("/api/v1/runtime");
+    const xcloudStatusPath = path.join(process.env.HOME || "", "Library/Application Support/BlackMambaInput/reports/xcloud-bridge-status.json");
+    let xcloud = null;
+    try {
+      if (fs.existsSync(xcloudStatusPath)) {
+        xcloud = JSON.parse(fs.readFileSync(xcloudStatusPath, "utf8"));
+      }
+    } catch {
+      xcloud = null;
+    }
+    const frontmost = await frontmostApp();
+    const frontmostOk = /Google Chrome|ChatGPT Atlas/i.test(frontmost);
+    const xcloudReady = xcloud?.state === "injected" || xcloud?.playTarget === true;
+    const runtimeReady = runtime.ok && runtime.body?.runtime?.active === true && runtime.body?.gameMode?.connected === true;
+    const controlDetected = runtime.ok && runtime.body?.gameMode?.state === "running";
+    let focusAttempt = null;
+    let focusedOk = frontmostOk;
+    if (!focusedOk && health.ok && runtimeReady && xcloudReady) {
+      focusAttempt = await focusGameWindow();
+      focusedOk = Boolean(focusAttempt.ok);
+    }
+    const ok = Boolean(health.ok && runtimeReady && xcloudReady && focusedOk);
+    console.log(JSON.stringify({
+      ok,
+      ready: ok ? "ready_to_play" : "not_ready",
+      checks: {
+        api: health.ok,
+        runtime: runtimeReady,
+        control: controlDetected,
+        bridge: xcloudReady,
+        frontmost: focusedOk
+      },
+      frontmostApp: (focusAttempt?.app || frontmost) || null,
+      focusAttempt: focusAttempt ? { ok: focusAttempt.ok, app: focusAttempt.app || null } : null,
+      runtime: summarizeRuntime(runtime.body?.runtime),
+      gameMode: runtime.body?.gameMode || null,
+      bridge: xcloud ? {
+        state: xcloud.state || null,
+        cdp: xcloud.cdp || null,
+        playTarget: Boolean(xcloud.playTarget),
+        activeSession: Boolean(xcloud.activeSession)
+      } : null
+    }, null, 2));
+    process.exit(ok ? 0 : 1);
+  }
+
+  if (command === "open") {
+    const api = await ensureApiRunning();
+    const stack = await ensurePlayStack();
+    const runtime = await requestJson("/api/v1/runtime");
+    const connect = await requestJsonWithMethod("/api/v1/game/connect", "POST", { source: "bmctl", label: "open" });
+    const focusAttempt = await focusGameWindow();
+    const state = ensureState();
+    state.mode = "game";
+    state.gameMode = {
+      ...(state.gameMode || {}),
+      connected: true,
+      state: "running",
+      graceEndsAt: null,
+      lastTransitionAt: new Date().toISOString(),
+      lastEvent: { type: "open", detail: { source: "bmctl" }, at: new Date().toISOString() }
+    };
+    saveState(state);
+    const ok = Boolean(api.ok && stack.ok && connect.ok);
+    console.log(JSON.stringify({
+      ok,
+      mode: "open",
+      focusAttempt,
+      api: api.body || api.error || null,
+      stack: { ok: stack.ok, code: stack.code, stdout: stack.stdout || "", stderr: stack.stderr || "" },
+      connect: connect.body || null,
+      runtime: summarizeRuntime(runtime.body?.runtime),
+      gameMode: runtime.body?.gameMode || state.gameMode
+    }, null, 2));
+    process.exit(ok ? 0 : 1);
+  }
+
+  if (command === "work") {
+    console.log(JSON.stringify({ ok: true, mode: "work", action: "prepared" }, null, 2));
+    process.exit(0);
+  }
+
+  if (command === "play") {
+    const api = await ensureApiRunning();
+    const runtimeBefore = await requestJson("/api/v1/runtime");
+    const alreadyActive = runtimeBefore.ok && runtimeBefore.body?.runtime?.active === true;
+    const bridgeReady = fs.existsSync(BRIDGE_PATH);
+    const stack = alreadyActive && bridgeReady ? { ok: true, code: 0, stdout: "already_active", stderr: "" } : await ensurePlayStack();
+    const connect = await requestJsonWithMethod(alreadyActive ? "/api/v1/game/reconnect" : "/api/v1/game/connect", "POST", { source: "bmctl", label: "play" });
+    const runtimeAfter = await requestJson("/api/v1/runtime");
+    const focusAttempt = await focusGameWindow();
+    const state = ensureState();
+    state.mode = "game";
+    state.gameMode = {
+      ...(state.gameMode || {}),
+      connected: true,
+      state: "running",
+      graceEndsAt: null,
+      lastTransitionAt: new Date().toISOString(),
+      lastEvent: { type: "play", detail: { source: "bmctl", alreadyActive }, at: new Date().toISOString() }
+    };
+    saveState(state);
+    const ok = Boolean(api.ok && stack.ok && connect.ok && runtimeAfter.ok && runtimeAfter.body?.runtime?.active === true);
+    console.log(JSON.stringify({
+      ok,
+      mode: "play",
+      alreadyActive,
+      bridgeReady,
+      focusAttempt,
+      api: api.body || api.error || null,
+      stack: { ok: stack.ok, code: stack.code, stdout: stack.stdout || "", stderr: stack.stderr || "" },
+      connect: connect.body || null,
+      runtime: summarizeRuntime(runtimeAfter.body?.runtime),
+      gameMode: runtimeAfter.body?.gameMode || state.gameMode
+    }, null, 2));
+    process.exit(ok ? 0 : 1);
+  }
+
+  if (command === "close") {
+    const before = await requestJson("/api/v1/runtime");
+    const closeResult = await requestJsonWithMethod("/api/v1/game/close", "POST", { source: "bmctl", label: "close" });
+    const runtimeShutdown = await runScript(CLOSE_RUNTIME_SCRIPT, []);
+    const apiShutdown = await runScript(STOP_API_SCRIPT, []);
+    let after = await requestJson("/api/v1/runtime");
+    let fallbackReason = null;
+
+    if (!after.ok || !closeResult.ok) {
+      const state = ensureState();
+      if (state) {
+        state.mode = "standby";
+        state.gameMode = {
+          ...(state.gameMode || {}),
+          connected: false,
+          state: "stopped",
+          graceEndsAt: null,
+          lastTransitionAt: new Date().toISOString(),
+          lastEvent: { type: "close", detail: { source: "bmctl", fallback: true }, at: new Date().toISOString() }
+        };
+        saveState(state);
+        fallbackReason = "api_unavailable";
+        after = { ok: true, body: { runtime: { state: "standby", active: false }, gameMode: state.gameMode } };
+      }
+    }
+
+    const ok = Boolean(after.ok && after.body?.runtime?.active === false && after.body?.gameMode?.state === "stopped");
+    console.log(JSON.stringify({
+      ok,
+      mode: "close",
+      before: before.body?.runtime || null,
+      closeResult: closeResult.body || null,
+      runtimeShutdown: runtimeShutdown.stdout ? runtimeShutdown.stdout.trim() : runtimeShutdown.stderr || null,
+      apiShutdown: apiShutdown.stdout ? apiShutdown.stdout.trim() : apiShutdown.stderr || null,
+      after: after.body?.runtime || null,
+      fallbackReason
+    }, null, 2));
+    process.exit(ok ? 0 : 1);
+  }
+}
+
+main();

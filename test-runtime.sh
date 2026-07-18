@@ -25,6 +25,7 @@ node --check "${ROOT}/adapters/debug/print-trace.js"
 node --check "${ROOT}/app/server.js"
 node --check "${ROOT}/app/public/app.js"
 bash -n "${ROOT}/start-live-monitor.sh" "${ROOT}/stop-live-monitor.sh" "${ROOT}/controller-watchdog.sh" "${ROOT}/install-controller-watch-agent.sh" "${ROOT}/uninstall-controller-watch-agent.sh" "${ROOT}/install-live-monitor-agent.sh" "${ROOT}/uninstall-live-monitor-agent.sh" "${ROOT}/hid-raw-monitor.sh" "${ROOT}/press-a-live-test.sh" "${ROOT}/close-runtime.sh" "${ROOT}/repo-hygiene.sh"
+bash -n "${ROOT}/test-bmctl-cycle.sh"
 if [[ "$(uname)" == "Darwin" ]] && command -v swiftc >/dev/null 2>&1; then CLANG_MODULE_CACHE_PATH="${TMP_DIR}/clang-module-cache" swiftc "${ROOT}/runtime/hid-raw-monitor.swift" -o "${TMP_DIR}/hid-raw-monitor"; else echo "WARN: swiftc not found, skipping native compilation check"; fi
 
 echo "== JSON checks =="
@@ -189,5 +190,8 @@ sleep 1
 node "${ROOT}/runtime/live-monitor-smoke.js" 8139
 kill "${LIVE_PID}" >/dev/null 2>&1 || true
 trap - EXIT
+
+echo "== bmctl cycle smoke =="
+BMCTL_HTTP_TIMEOUT_MS=2000 "${ROOT}/test-bmctl-cycle.sh"
 
 echo "OK runtime robust"

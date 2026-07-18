@@ -1,0 +1,6 @@
+logs
+reports
+.tmp-runtime-test
+node_modules
+*.pid
+.DS_Store

@@ -37,12 +37,15 @@ function lifecycle(message) {
 
 const COMMANDS = {
   "wake": { args: ["wake"], timeout: 30000 },
+  "open": { args: ["open"], timeout: 45000 },
   "verify": { args: ["verify"], timeout: 30000 },
   "buttons": { args: ["buttons"], timeout: 20000, env: { DURATION_MS: "12000" } },
   "reinject": { args: ["reinject"], timeout: 25000 },
   "recycle": { args: ["recycle"], timeout: 45000 },
   "doctor": { args: ["doctor-advanced"], timeout: 30000 },
   "status": { args: ["status"], timeout: 15000 },
+  "ready": { args: ["ready"], timeout: 15000 },
+  "focus": { args: ["focus"], timeout: 15000 },
   "ram": { args: ["ram"], timeout: 15000 },
   "fortnite-map": { args: ["fortnite-map"], timeout: 15000 },
   "switch-map": { args: ["switch-map"], timeout: 15000 },

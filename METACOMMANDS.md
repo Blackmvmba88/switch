@@ -7,6 +7,8 @@
 ```
 
 ```bash
+./bmctl open
+./bmctl play
 ./bmctl app
 ./bmctl game-on
 ./bmctl verify

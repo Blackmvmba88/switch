@@ -6,6 +6,7 @@
   "scripts": {
     "start": "./bmctl app",
     "test": "./test-runtime.sh",
+    "open": "./bmctl open",
     "game-on": "./bmctl game-on",
     "game-off": "./bmctl game-off",
     "status": "./bmctl status",
