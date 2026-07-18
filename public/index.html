@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BlackMamba Control Room</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="glow-bg"></div>
+  <header>
+    <div class="logo">
+      <span class="mamba-icon">🐍</span>
+      <h1>BlackMamba <span>Control Room</span></h1>
+    </div>
+    <div class="sys-status" id="sys-status">
+      <span class="status-dot offline"></span>
+      <span class="status-text">DESCONECTADO</span>
+    </div>
+  </header>
+
+  <main class="dashboard-grid">
+    <!-- Panel 1: Live Input Monitor -->
+    <section class="card live-monitor-card">
+      <h2>Mapeo en Vivo</h2>
+      <div class="sticks-visualizer">
+        <div class="stick-box">
+          <h3>Stick Izquierdo (LX, LY)</h3>
+          <div class="stick-area" id="left-stick-area">
+            <div class="stick-center"></div>
+            <div class="stick-dot" id="left-stick-dot"></div>
+          </div>
+          <div class="axis-values">
+            <div>LX: <span id="val-lx" class="mono">0.000</span></div>
+            <div>LY: <span id="val-ly" class="mono">0.000</span></div>
+          </div>
+        </div>
+
+        <div class="stick-box">
+          <h3>Stick Derecho (RX, RY)</h3>
+          <div class="stick-area" id="right-stick-area">
+            <div class="stick-center"></div>
+            <div class="stick-dot" id="right-stick-dot"></div>
+          </div>
+          <div class="axis-values">
+            <div>RX: <span id="val-rx" class="mono">0.000</span></div>
+            <div>RY: <span id="val-ry" class="mono">0.000</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="buttons-grid" id="buttons-grid">
+        <div class="btn-node" data-btn="A">A</div>
+        <div class="btn-node" data-btn="B">B</div>
+        <div class="btn-node" data-btn="X">X</div>
+        <div class="btn-node" data-btn="Y">Y</div>
+        <div class="btn-node" data-btn="LB">LB</div>
+        <div class="btn-node" data-btn="RB">RB</div>
+        <div class="btn-node" data-btn="LT">LT</div>
+        <div class="btn-node" data-btn="RT">RT</div>
+        <div class="btn-node" data-btn="Back">BACK</div>
+        <div class="btn-node" data-btn="Start">START</div>
+        <div class="btn-node" data-btn="L3">L3</div>
+        <div class="btn-node" data-btn="R3">R3</div>
+        <div class="btn-node" data-btn="Guide">GUIDE</div>
+      </div>
+    </section>
+
+    <!-- Panel 2: Sensitivity & Calibration -->
+    <section class="card config-card">
+      <h2>Sensibilidad (Flight Simulator)</h2>
+      <p class="section-desc">Aumenta la sensibilidad de los sticks para reacciones rápidas del avión.</p>
+      
+      <div class="slider-group">
+        <div class="slider-header">
+          <label for="sens-lx">LX Sensibilidad (Roll)</label>
+          <span id="label-sens-lx" class="sens-badge">1.0x</span>
+        </div>
+        <input type="range" id="sens-lx" min="0.5" max="3.0" step="0.1" value="1.0">
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-header">
+          <label for="sens-ly">LY Sensibilidad (Pitch)</label>
+          <span id="label-sens-ly" class="sens-badge">1.0x</span>
+        </div>
+        <input type="range" id="sens-ly" min="0.5" max="3.0" step="0.1" value="1.0">
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-header">
+          <label for="sens-rx">RX Sensibilidad (Mirada X)</label>
+          <span id="label-sens-rx" class="sens-badge">1.0x</span>
+        </div>
+        <input type="range" id="sens-rx" min="0.5" max="3.0" step="0.1" value="1.0">
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-header">
+          <label for="sens-ry">RY Sensibilidad (Mirada Y)</label>
+          <span id="label-sens-ry" class="sens-badge">1.0x</span>
+        </div>
+        <input type="range" id="sens-ry" min="0.5" max="3.0" step="0.1" value="1.0">
+      </div>
+
+      <div class="action-buttons">
+        <button id="btn-save-sens" class="btn btn-primary">Guardar Configuración</button>
+      </div>
+
+      <hr class="divider">
+
+      <h2>Calibración Neutral</h2>
+      <p class="section-desc">Los offsets se adaptan de forma continua para corregir el stick drift de forma neutral.</p>
+      <div class="calibration-stats">
+        <div class="stat-row">
+          <span>Offsets Activos:</span>
+          <span id="cal-offsets" class="mono">-</span>
+        </div>
+      </div>
+      <div class="action-buttons-sec">
+        <button id="btn-reset-cal" class="btn btn-danger">Reiniciar Calibración</button>
+      </div>
+    </section>
+
+    <!-- Panel 3: System Status & Diagnostic Console -->
+    <section class="card console-card">
+      <h2>Consola y Diagnóstico</h2>
+      <div class="status-summary-grid">
+        <div class="summary-item">
+          <div class="summary-label">Dispositivo Detectado</div>
+          <div class="summary-val" id="val-device">-</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">Modo Activo</div>
+          <div class="summary-val text-green" id="val-mode">-</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">Clientes Conectados</div>
+          <div class="summary-val" id="val-clients">-</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">Frames Totales</div>
+          <div class="summary-val" id="val-frames">-</div>
+        </div>
+      </div>
+
+      <div class="diagnostic-actions">
+        <button id="btn-run-doctor" class="btn btn-sec">Ejecutar Doctor</button>
+        <button id="btn-run-verify" class="btn btn-sec">Ejecutar Verificar</button>
+      </div>
+
+      <div class="console-box">
+        <div class="console-header">
+          <span>Salida del Diagnóstico</span>
+          <button id="btn-clear-console" class="btn-clear">Limpiar</button>
+        </div>
+        <pre class="console-output" id="console-output">Listo para el diagnóstico. Presione 'Ejecutar Doctor' o 'Ejecutar Verificar'...</pre>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

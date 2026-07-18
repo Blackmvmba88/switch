@@ -28,3 +28,4 @@ github-latest-switch/
 
 # Release artifacts
 dist/
+reports/

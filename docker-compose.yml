@@ -1,0 +1,7 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8787:8787"
+    environment:
+      - PORT=8787
