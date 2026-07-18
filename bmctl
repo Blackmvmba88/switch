@@ -8,8 +8,10 @@ const STATE_PATH = path.join(ROOT, "reports", "runtime-state.json");
 const API_URL = process.env.BMCTL_API_URL || "http://127.0.0.1:8147";
 const BRIDGE_PATH = path.join(ROOT, "xbox-gamepad-bridge");
 const CONTROLLER_DOCTOR_PATH = path.join(ROOT, "controller-doctor.sh");
-const CLOSE_RUNTIME_SCRIPT = path.join(process.env.HOME || "", "Library/Application Support/BlackMambaInput/close-runtime.sh");
-const STOP_API_SCRIPT = path.join(ROOT, "stop-api.sh");
+const START_API_SCRIPT = process.env.BMCTL_START_API_SCRIPT || path.join(ROOT, "start-api.sh");
+const PLAY_STACK_SCRIPT = process.env.BMCTL_PLAY_STACK_SCRIPT || path.join(ROOT, "play-xcloud-cdp-bridge.sh");
+const CLOSE_RUNTIME_SCRIPT = process.env.BMCTL_CLOSE_RUNTIME_SCRIPT || path.join(process.env.HOME || "", "Library/Application Support/BlackMambaInput/close-runtime.sh");
+const STOP_API_SCRIPT = process.env.BMCTL_STOP_API_SCRIPT || path.join(ROOT, "stop-api.sh");
 const HTTP_TIMEOUT_MS = Number(process.env.BMCTL_HTTP_TIMEOUT_MS || 5000);
 
 function loadState() {
@@ -26,6 +28,33 @@ function loadState() {
 function saveState(state) {
   fs.mkdirSync(path.dirname(STATE_PATH), { recursive: true });
   fs.writeFileSync(STATE_PATH, `${JSON.stringify(state, null, 2)}\n`);
+}
+
+function ensureState() {
+  const state = loadState();
+  if (state) {
+    return state;
+  }
+  const fallback = {
+    version: "1.0",
+    bootedAt: new Date().toISOString(),
+    mode: "standby",
+    gameMode: {
+      state: "idle",
+      connected: false,
+      graceEndsAt: null,
+      lastTransitionAt: new Date().toISOString(),
+      lastEvent: null
+    },
+    jobs: {},
+    warnings: [],
+    metrics: {
+      restarts: 0,
+      events: 0
+    }
+  };
+  saveState(fallback);
+  return fallback;
 }
 
 function requestJson(pathname) {
@@ -123,15 +152,40 @@ function killMatching(pattern) {
   });
 }
 
+async function ensureApiRunning() {
+  const health = await requestJson("/health");
+  if (health.ok) {
+    return health;
+  }
+  const started = await runScript(START_API_SCRIPT, []);
+  if (!started.ok) {
+    return { ok: false, error: started.stderr || started.stdout || "api_start_failed" };
+  }
+  return requestJson("/health");
+}
+
+async function ensurePlayStack() {
+  return runScript(PLAY_STACK_SCRIPT, []);
+}
+
+function summarizeRuntime(runtime) {
+  return {
+    state: runtime?.state || null,
+    active: runtime?.active === true,
+    bootedAt: runtime?.bootedAt || null,
+    uptimeMs: runtime?.uptimeMs ?? null
+  };
+}
+
 async function main() {
   const command = process.argv[2];
-  if (!command || ["status", "doctor", "verify", "work", "play", "close"].indexOf(command) === -1) {
-    console.error("usage: bmctl <status|doctor|verify|work|play|close>");
+  if (!command || ["status", "doctor", "verify", "open", "work", "play", "close"].indexOf(command) === -1) {
+    console.error("usage: bmctl <status|doctor|verify|open|work|play|close>");
     process.exit(2);
   }
 
   if (command === "status") {
-    const state = loadState();
+    const state = ensureState();
     if (!state) {
       console.log("runtime: unavailable");
       process.exit(1);
@@ -141,7 +195,7 @@ async function main() {
   }
 
   if (command === "doctor") {
-    const state = loadState();
+    const state = ensureState();
     const checks = [];
     checks.push({ name: "runtime-state", status: state ? "ok" : "error" });
     checks.push({ name: "api-server", status: await requestJson("/health").then((r) => (r.ok ? "ok" : "error")) });
@@ -160,16 +214,71 @@ async function main() {
     process.exit(ok ? 0 : 1);
   }
 
+  if (command === "open") {
+    const api = await ensureApiRunning();
+    const stack = await ensurePlayStack();
+    const runtime = await requestJson("/api/v1/runtime");
+    const connect = await requestJsonWithMethod("/api/v1/game/connect", "POST", { source: "bmctl", label: "open" });
+    const state = ensureState();
+    state.mode = "game";
+    state.gameMode = {
+      ...(state.gameMode || {}),
+      connected: true,
+      state: "running",
+      graceEndsAt: null,
+      lastTransitionAt: new Date().toISOString(),
+      lastEvent: { type: "open", detail: { source: "bmctl" }, at: new Date().toISOString() }
+    };
+    saveState(state);
+    const ok = Boolean(api.ok && stack.ok && connect.ok);
+    console.log(JSON.stringify({
+      ok,
+      mode: "open",
+      api: api.body || api.error || null,
+      stack: { ok: stack.ok, code: stack.code, stdout: stack.stdout || "", stderr: stack.stderr || "" },
+      connect: connect.body || null,
+      runtime: summarizeRuntime(runtime.body?.runtime),
+      gameMode: runtime.body?.gameMode || state.gameMode
+    }, null, 2));
+    process.exit(ok ? 0 : 1);
+  }
+
   if (command === "work") {
     console.log(JSON.stringify({ ok: true, mode: "work", action: "prepared" }, null, 2));
     process.exit(0);
   }
 
   if (command === "play") {
-    const runtime = await requestJson("/api/v1/runtime");
+    const api = await ensureApiRunning();
+    const runtimeBefore = await requestJson("/api/v1/runtime");
+    const alreadyActive = runtimeBefore.ok && runtimeBefore.body?.runtime?.active === true;
     const bridgeReady = fs.existsSync(BRIDGE_PATH);
-    const ok = runtime.ok && runtime.body?.runtime?.active === true && bridgeReady;
-    console.log(JSON.stringify({ ok, mode: "play", bridgeReady, runtime: runtime.body?.runtime || null }, null, 2));
+    const stack = alreadyActive && bridgeReady ? { ok: true, code: 0, stdout: "already_active", stderr: "" } : await ensurePlayStack();
+    const connect = await requestJsonWithMethod(alreadyActive ? "/api/v1/game/reconnect" : "/api/v1/game/connect", "POST", { source: "bmctl", label: "play" });
+    const runtimeAfter = await requestJson("/api/v1/runtime");
+    const state = ensureState();
+    state.mode = "game";
+    state.gameMode = {
+      ...(state.gameMode || {}),
+      connected: true,
+      state: "running",
+      graceEndsAt: null,
+      lastTransitionAt: new Date().toISOString(),
+      lastEvent: { type: "play", detail: { source: "bmctl", alreadyActive }, at: new Date().toISOString() }
+    };
+    saveState(state);
+    const ok = Boolean(api.ok && stack.ok && connect.ok && runtimeAfter.ok && runtimeAfter.body?.runtime?.active === true);
+    console.log(JSON.stringify({
+      ok,
+      mode: "play",
+      alreadyActive,
+      bridgeReady,
+      api: api.body || api.error || null,
+      stack: { ok: stack.ok, code: stack.code, stdout: stack.stdout || "", stderr: stack.stderr || "" },
+      connect: connect.body || null,
+      runtime: summarizeRuntime(runtimeAfter.body?.runtime),
+      gameMode: runtimeAfter.body?.gameMode || state.gameMode
+    }, null, 2));
     process.exit(ok ? 0 : 1);
   }
 
@@ -178,16 +287,11 @@ async function main() {
     const closeResult = await requestJsonWithMethod("/api/v1/game/close", "POST", { source: "bmctl", label: "close" });
     const runtimeShutdown = await runScript(CLOSE_RUNTIME_SCRIPT, []);
     const apiShutdown = await runScript(STOP_API_SCRIPT, []);
-    const processShutdown = {
-      bridgeAgent: await killMatching("xcloud-bridge-agent.js"),
-      cdpInject: await killMatching("inject-bridge-cdp.js"),
-      chromeProfile: await killMatching("remote-debugging-port=9224.*(blackmamba-xcloud-cdp-profile|BlackMambaInput/chrome-profile)|(blackmamba-xcloud-cdp-profile|BlackMambaInput/chrome-profile).*remote-debugging-port=9224|Google Chrome.*(blackmamba-xcloud-cdp-profile|BlackMambaInput/chrome-profile)|(blackmamba-xcloud-cdp-profile|BlackMambaInput/chrome-profile).*Google Chrome")
-    };
     let after = await requestJson("/api/v1/runtime");
     let fallbackReason = null;
 
     if (!after.ok || !closeResult.ok) {
-      const state = loadState();
+      const state = ensureState();
       if (state) {
         state.mode = "standby";
         state.gameMode = {
@@ -212,7 +316,6 @@ async function main() {
       closeResult: closeResult.body || null,
       runtimeShutdown: runtimeShutdown.stdout ? runtimeShutdown.stdout.trim() : runtimeShutdown.stderr || null,
       apiShutdown: apiShutdown.stdout ? apiShutdown.stdout.trim() : apiShutdown.stderr || null,
-      processShutdown,
       after: after.body?.runtime || null,
       fallbackReason
     }, null, 2));

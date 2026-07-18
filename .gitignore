@@ -17,6 +17,7 @@ steam-login-backups/
 
 # Local compiled/scratch runtime state.
 .tmp-runtime-test/
+.tmp-bmctl-cycle/
 .tmp-hid-inspector/
 .tmp-virtual-hid-bridge/
 

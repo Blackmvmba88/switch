@@ -37,6 +37,7 @@ function lifecycle(message) {
 
 const COMMANDS = {
   "wake": { args: ["wake"], timeout: 30000 },
+  "open": { args: ["open"], timeout: 45000 },
   "verify": { args: ["verify"], timeout: 30000 },
   "buttons": { args: ["buttons"], timeout: 20000, env: { DURATION_MS: "12000" } },
   "reinject": { args: ["reinject"], timeout: 25000 },
