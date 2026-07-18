@@ -44,6 +44,8 @@ const COMMANDS = {
   "recycle": { args: ["recycle"], timeout: 45000 },
   "doctor": { args: ["doctor-advanced"], timeout: 30000 },
   "status": { args: ["status"], timeout: 15000 },
+  "ready": { args: ["ready"], timeout: 15000 },
+  "focus": { args: ["focus"], timeout: 15000 },
   "ram": { args: ["ram"], timeout: 15000 },
   "fortnite-map": { args: ["fortnite-map"], timeout: 15000 },
   "switch-map": { args: ["switch-map"], timeout: 15000 },

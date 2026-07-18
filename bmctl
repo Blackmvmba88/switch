@@ -177,10 +177,60 @@ function summarizeRuntime(runtime) {
   };
 }
 
+function frontmostApp() {
+  return new Promise((resolve) => {
+    require("node:child_process").execFile("/usr/bin/osascript", [
+      "-e",
+      'tell application "System Events" to get name of first application process whose frontmost is true'
+    ], { timeout: 3000 }, (error, stdout) => {
+      resolve(error ? "" : String(stdout || "").trim());
+    });
+  });
+}
+
+function activateApp(appName) {
+  return new Promise((resolve) => {
+    require("node:child_process").execFile("/usr/bin/osascript", [
+      "-e",
+      `tell application "${appName}" to activate`
+    ], { timeout: 5000 }, (error, stdout, stderr) => {
+      resolve({ ok: !error, stdout: String(stdout || "").trim(), stderr: String(stderr || "").trim() });
+    });
+  });
+}
+
+async function focusGameWindow() {
+  const xcloudStatusPath = path.join(process.env.HOME || "", "Library/Application Support/BlackMambaInput/reports/xcloud-bridge-status.json");
+  let browserPreference = "";
+  try {
+    if (fs.existsSync(xcloudStatusPath)) {
+      const status = JSON.parse(fs.readFileSync(xcloudStatusPath, "utf8"));
+      browserPreference = String(status.browserApp || "").trim();
+    }
+  } catch {
+    browserPreference = "";
+  }
+  const browserChoices = browserPreference === "ChatGPT Atlas"
+    ? ["ChatGPT Atlas", "Google Chrome"]
+    : ["Google Chrome", "ChatGPT Atlas"];
+  for (const appName of browserChoices) {
+    const activated = await activateApp(appName);
+    if (!activated.ok) {
+      continue;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    const current = await frontmostApp();
+    if (new RegExp(appName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(current)) {
+      return { ok: true, app: current || appName };
+    }
+  }
+  return { ok: false, app: await frontmostApp() };
+}
+
 async function main() {
   const command = process.argv[2];
-  if (!command || ["status", "doctor", "verify", "open", "work", "play", "close"].indexOf(command) === -1) {
-    console.error("usage: bmctl <status|doctor|verify|open|work|play|close>");
+  if (!command || ["status", "doctor", "verify", "ready", "focus", "open", "work", "play", "close"].indexOf(command) === -1) {
+    console.error("usage: bmctl <status|doctor|verify|ready|focus|open|work|play|close>");
     process.exit(2);
   }
 
@@ -214,11 +264,73 @@ async function main() {
     process.exit(ok ? 0 : 1);
   }
 
+  if (command === "focus") {
+    const result = await focusGameWindow();
+    const frontmost = await frontmostApp();
+    const ok = Boolean(result.ok);
+    console.log(JSON.stringify({
+      ok,
+      focused: result.ok,
+      frontmostApp: frontmost || null,
+      targetApp: result.app || null
+    }, null, 2));
+    process.exit(ok ? 0 : 1);
+  }
+
+  if (command === "ready") {
+    const health = await requestJson("/health");
+    const runtime = await requestJson("/api/v1/runtime");
+    const xcloudStatusPath = path.join(process.env.HOME || "", "Library/Application Support/BlackMambaInput/reports/xcloud-bridge-status.json");
+    let xcloud = null;
+    try {
+      if (fs.existsSync(xcloudStatusPath)) {
+        xcloud = JSON.parse(fs.readFileSync(xcloudStatusPath, "utf8"));
+      }
+    } catch {
+      xcloud = null;
+    }
+    const frontmost = await frontmostApp();
+    const frontmostOk = /Google Chrome|ChatGPT Atlas/i.test(frontmost);
+    const xcloudReady = xcloud?.state === "injected" || xcloud?.playTarget === true;
+    const runtimeReady = runtime.ok && runtime.body?.runtime?.active === true && runtime.body?.gameMode?.connected === true;
+    const controlDetected = runtime.ok && runtime.body?.gameMode?.state === "running";
+    let focusAttempt = null;
+    let focusedOk = frontmostOk;
+    if (!focusedOk && health.ok && runtimeReady && xcloudReady) {
+      focusAttempt = await focusGameWindow();
+      focusedOk = Boolean(focusAttempt.ok);
+    }
+    const ok = Boolean(health.ok && runtimeReady && xcloudReady && focusedOk);
+    console.log(JSON.stringify({
+      ok,
+      ready: ok ? "ready_to_play" : "not_ready",
+      checks: {
+        api: health.ok,
+        runtime: runtimeReady,
+        control: controlDetected,
+        bridge: xcloudReady,
+        frontmost: focusedOk
+      },
+      frontmostApp: (focusAttempt?.app || frontmost) || null,
+      focusAttempt: focusAttempt ? { ok: focusAttempt.ok, app: focusAttempt.app || null } : null,
+      runtime: summarizeRuntime(runtime.body?.runtime),
+      gameMode: runtime.body?.gameMode || null,
+      bridge: xcloud ? {
+        state: xcloud.state || null,
+        cdp: xcloud.cdp || null,
+        playTarget: Boolean(xcloud.playTarget),
+        activeSession: Boolean(xcloud.activeSession)
+      } : null
+    }, null, 2));
+    process.exit(ok ? 0 : 1);
+  }
+
   if (command === "open") {
     const api = await ensureApiRunning();
     const stack = await ensurePlayStack();
     const runtime = await requestJson("/api/v1/runtime");
     const connect = await requestJsonWithMethod("/api/v1/game/connect", "POST", { source: "bmctl", label: "open" });
+    const focusAttempt = await focusGameWindow();
     const state = ensureState();
     state.mode = "game";
     state.gameMode = {
@@ -234,6 +346,7 @@ async function main() {
     console.log(JSON.stringify({
       ok,
       mode: "open",
+      focusAttempt,
       api: api.body || api.error || null,
       stack: { ok: stack.ok, code: stack.code, stdout: stack.stdout || "", stderr: stack.stderr || "" },
       connect: connect.body || null,
@@ -256,6 +369,7 @@ async function main() {
     const stack = alreadyActive && bridgeReady ? { ok: true, code: 0, stdout: "already_active", stderr: "" } : await ensurePlayStack();
     const connect = await requestJsonWithMethod(alreadyActive ? "/api/v1/game/reconnect" : "/api/v1/game/connect", "POST", { source: "bmctl", label: "play" });
     const runtimeAfter = await requestJson("/api/v1/runtime");
+    const focusAttempt = await focusGameWindow();
     const state = ensureState();
     state.mode = "game";
     state.gameMode = {
@@ -273,6 +387,7 @@ async function main() {
       mode: "play",
       alreadyActive,
       bridgeReady,
+      focusAttempt,
       api: api.body || api.error || null,
       stack: { ok: stack.ok, code: stack.code, stdout: stack.stdout || "", stderr: stack.stderr || "" },
       connect: connect.body || null,
