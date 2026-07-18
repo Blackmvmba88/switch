@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+RUNTIME_DIR="${HOME}/Library/Application Support/BlackMambaInput/runtime/xbox-gamepad-bridge"
+
+mkdir -p "${RUNTIME_DIR}"
+cp "${ROOT}/xbox-gamepad-bridge/bridge.js" "${RUNTIME_DIR}/bridge.js" 2>/dev/null || true
+echo "xbox-gamepad-bridge instalado en runtime"

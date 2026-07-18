@@ -1,0 +1,223 @@
+#!/usr/bin/env node
+const fs = require("node:fs");
+const path = require("node:path");
+const http = require("node:http");
+
+const ROOT = path.resolve(__dirname);
+const STATE_PATH = path.join(ROOT, "reports", "runtime-state.json");
+const API_URL = process.env.BMCTL_API_URL || "http://127.0.0.1:8147";
+const BRIDGE_PATH = path.join(ROOT, "xbox-gamepad-bridge");
+const CONTROLLER_DOCTOR_PATH = path.join(ROOT, "controller-doctor.sh");
+const CLOSE_RUNTIME_SCRIPT = path.join(process.env.HOME || "", "Library/Application Support/BlackMambaInput/close-runtime.sh");
+const STOP_API_SCRIPT = path.join(ROOT, "stop-api.sh");
+const HTTP_TIMEOUT_MS = Number(process.env.BMCTL_HTTP_TIMEOUT_MS || 5000);
+
+function loadState() {
+  try {
+    if (!fs.existsSync(STATE_PATH)) {
+      return null;
+    }
+    return JSON.parse(fs.readFileSync(STATE_PATH, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function saveState(state) {
+  fs.mkdirSync(path.dirname(STATE_PATH), { recursive: true });
+  fs.writeFileSync(STATE_PATH, `${JSON.stringify(state, null, 2)}\n`);
+}
+
+function requestJson(pathname) {
+  return new Promise((resolve) => {
+    const req = http.get(new URL(pathname, API_URL), (res) => {
+      let raw = "";
+      res.setEncoding("utf8");
+      res.on("data", (chunk) => (raw += chunk));
+      res.on("end", () => {
+        try {
+          resolve({ ok: res.statusCode >= 200 && res.statusCode < 300, status: res.statusCode, body: JSON.parse(raw || "{}") });
+        } catch {
+          resolve({ ok: false, status: res.statusCode, body: { raw } });
+        }
+      });
+    });
+    req.setTimeout(HTTP_TIMEOUT_MS, () => {
+      req.destroy(new Error("request_timeout"));
+    });
+    req.on("error", (error) => resolve({ ok: false, status: 0, error: error.message }));
+  });
+}
+
+function requestJsonWithMethod(pathname, method = "GET", body = null) {
+  return new Promise((resolve) => {
+    const url = new URL(pathname, API_URL);
+    const req = http.request(url, {
+      method,
+      headers: body ? { "content-type": "application/json" } : {}
+    }, (res) => {
+      let raw = "";
+      res.setEncoding("utf8");
+      res.on("data", (chunk) => (raw += chunk));
+      res.on("end", () => {
+        try {
+          resolve({ ok: res.statusCode >= 200 && res.statusCode < 300, status: res.statusCode, body: JSON.parse(raw || "{}") });
+        } catch {
+          resolve({ ok: false, status: res.statusCode, body: { raw } });
+        }
+      });
+    });
+    req.setTimeout(HTTP_TIMEOUT_MS, () => {
+      req.destroy(new Error("request_timeout"));
+    });
+    req.on("error", (error) => resolve({ ok: false, status: 0, error: error.message }));
+    if (body) {
+      req.write(JSON.stringify(body));
+    }
+    req.end();
+  });
+}
+
+function runScript(scriptPath, args = []) {
+  return new Promise((resolve) => {
+    if (!fs.existsSync(scriptPath)) {
+      resolve({ ok: false, code: 127, stdout: "", stderr: "missing_script" });
+      return;
+    }
+    const child = require("node:child_process").execFile("/bin/bash", [scriptPath, ...args], { cwd: ROOT, timeout: 30000 }, (error, stdout, stderr) => {
+      resolve({
+        ok: !error,
+        code: error?.code ?? 0,
+        stdout: String(stdout || ""),
+        stderr: String(stderr || "")
+      });
+    });
+    return child;
+  });
+}
+
+function killMatching(pattern) {
+  return new Promise((resolve) => {
+    const child_process = require("node:child_process");
+    let pids = [];
+    try {
+      pids = child_process.execFileSync("/usr/bin/pgrep", ["-f", pattern], { encoding: "utf8" })
+        .split("\n")
+        .map((value) => value.trim())
+        .filter(Boolean);
+    } catch (error) {
+      if (error.status !== 1) {
+        resolve({ ok: false, pattern, pids: [], error: error.message });
+        return;
+      }
+    }
+    const failed = [];
+    for (const pid of pids) {
+      try {
+        child_process.execFileSync("/bin/kill", ["-TERM", pid], { stdio: "ignore" });
+      } catch (error) {
+        failed.push({ pid, error: error.message });
+      }
+    }
+    resolve({ ok: failed.length === 0, pattern, pids, failed });
+  });
+}
+
+async function main() {
+  const command = process.argv[2];
+  if (!command || ["status", "doctor", "verify", "work", "play", "close"].indexOf(command) === -1) {
+    console.error("usage: bmctl <status|doctor|verify|work|play|close>");
+    process.exit(2);
+  }
+
+  if (command === "status") {
+    const state = loadState();
+    if (!state) {
+      console.log("runtime: unavailable");
+      process.exit(1);
+    }
+    console.log(JSON.stringify({ ok: true, runtime: state.mode, gameMode: state.gameMode }, null, 2));
+    process.exit(0);
+  }
+
+  if (command === "doctor") {
+    const state = loadState();
+    const checks = [];
+    checks.push({ name: "runtime-state", status: state ? "ok" : "error" });
+    checks.push({ name: "api-server", status: await requestJson("/health").then((r) => (r.ok ? "ok" : "error")) });
+    checks.push({ name: "control-detected", status: state?.gameMode?.connected ? "ok" : "warning" });
+    checks.push({ name: "game-bridge", status: fs.existsSync(BRIDGE_PATH) ? "ok" : "warning" });
+    checks.push({ name: "controller-doctor", status: fs.existsSync(CONTROLLER_DOCTOR_PATH) ? "ok" : "warning" });
+    console.log(JSON.stringify({ ok: checks.every((c) => c.status !== "error"), checks }, null, 2));
+    process.exit(checks.some((c) => c.status === "error") ? 1 : 0);
+  }
+
+  if (command === "verify") {
+    const health = await requestJson("/health");
+    const runtime = await requestJson("/api/v1/runtime");
+    const ok = health.ok && runtime.ok && runtime.body?.runtime?.active === true;
+    console.log(JSON.stringify({ ok, health: health.body, runtime: runtime.body }, null, 2));
+    process.exit(ok ? 0 : 1);
+  }
+
+  if (command === "work") {
+    console.log(JSON.stringify({ ok: true, mode: "work", action: "prepared" }, null, 2));
+    process.exit(0);
+  }
+
+  if (command === "play") {
+    const runtime = await requestJson("/api/v1/runtime");
+    const bridgeReady = fs.existsSync(BRIDGE_PATH);
+    const ok = runtime.ok && runtime.body?.runtime?.active === true && bridgeReady;
+    console.log(JSON.stringify({ ok, mode: "play", bridgeReady, runtime: runtime.body?.runtime || null }, null, 2));
+    process.exit(ok ? 0 : 1);
+  }
+
+  if (command === "close") {
+    const before = await requestJson("/api/v1/runtime");
+    const closeResult = await requestJsonWithMethod("/api/v1/game/close", "POST", { source: "bmctl", label: "close" });
+    const runtimeShutdown = await runScript(CLOSE_RUNTIME_SCRIPT, []);
+    const apiShutdown = await runScript(STOP_API_SCRIPT, []);
+    const processShutdown = {
+      bridgeAgent: await killMatching("xcloud-bridge-agent.js"),
+      cdpInject: await killMatching("inject-bridge-cdp.js"),
+      chromeProfile: await killMatching("remote-debugging-port=9224.*(blackmamba-xcloud-cdp-profile|BlackMambaInput/chrome-profile)|(blackmamba-xcloud-cdp-profile|BlackMambaInput/chrome-profile).*remote-debugging-port=9224|Google Chrome.*(blackmamba-xcloud-cdp-profile|BlackMambaInput/chrome-profile)|(blackmamba-xcloud-cdp-profile|BlackMambaInput/chrome-profile).*Google Chrome")
+    };
+    let after = await requestJson("/api/v1/runtime");
+    let fallbackReason = null;
+
+    if (!after.ok || !closeResult.ok) {
+      const state = loadState();
+      if (state) {
+        state.mode = "standby";
+        state.gameMode = {
+          ...(state.gameMode || {}),
+          connected: false,
+          state: "stopped",
+          graceEndsAt: null,
+          lastTransitionAt: new Date().toISOString(),
+          lastEvent: { type: "close", detail: { source: "bmctl", fallback: true }, at: new Date().toISOString() }
+        };
+        saveState(state);
+        fallbackReason = "api_unavailable";
+        after = { ok: true, body: { runtime: { state: "standby", active: false }, gameMode: state.gameMode } };
+      }
+    }
+
+    const ok = Boolean(after.ok && after.body?.runtime?.active === false && after.body?.gameMode?.state === "stopped");
+    console.log(JSON.stringify({
+      ok,
+      mode: "close",
+      before: before.body?.runtime || null,
+      closeResult: closeResult.body || null,
+      runtimeShutdown: runtimeShutdown.stdout ? runtimeShutdown.stdout.trim() : runtimeShutdown.stderr || null,
+      apiShutdown: apiShutdown.stdout ? apiShutdown.stdout.trim() : apiShutdown.stderr || null,
+      processShutdown,
+      after: after.body?.runtime || null,
+      fallbackReason
+    }, null, 2));
+    process.exit(ok ? 0 : 1);
+  }
+}
+
+main();
