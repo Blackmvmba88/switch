@@ -6,6 +6,7 @@
   "scripts": {
     "start": "./bmctl app",
     "test": "./test-runtime.sh",
+    "test:phase5": "node runtime/phase5-smoke.js",
     "open": "./bmctl open",
     "game-on": "./bmctl game-on",
     "game-off": "./bmctl game-off",
