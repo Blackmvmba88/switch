@@ -28,8 +28,8 @@
 - [x] Add a conservative adaptive-control foundation with manual pilot override.
 - [ ] AI-assisted input prediction and smoothing.
 - [ ] Context-aware mapping (automatic layout switching based on game state).
-- [ ] Context task engine: takeoff, climb, cruise, approach, landing, hover, transition and recovery.
-- [ ] Keyboard-as-cockpit semantic profiles for aircraft and helicopter controls.
+- [x] Context task engine: takeoff, climb, cruise, approach, landing, hover, transition and recovery.
+- [x] Keyboard-as-cockpit semantic profiles for aircraft and helicopter controls.
 - [ ] Integrate MSFS telemetry from `flight-simu` / SimConnect as feedback into BCR.
 - [ ] Cruise Assist for long-distance fixed-wing flight: heading, pitch/bank damping and workload reduction.
 - [ ] Helicopter SAS: damp pitch/roll/yaw rates while preserving immediate pilot authority.
