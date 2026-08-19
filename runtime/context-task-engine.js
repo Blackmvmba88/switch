@@ -73,13 +73,13 @@ function inferHelicopterContext(state) {
   const agl = num(state.altitudeAglFt ?? state.aglFt);
   const groundSpeed = num(state.groundSpeedKt);
   const vs = num(state.verticalSpeedFpm);
-  const bank = abs(state.bankDeg);
+  const bank = abs(state.bankDeg ?? state.rollDeg);
   const pitch = abs(state.pitchDeg);
 
   if (onGround && groundSpeed < 2) return CONTEXTS.PREFLIGHT;
+  if (!onGround && (bank > 35 || pitch > 25 || abs(vs) > 1200)) return CONTEXTS.RECOVERY;
   if (!onGround && agl < 200 && groundSpeed < 12 && abs(vs) < 450) return CONTEXTS.HOVER;
   if (!onGround && groundSpeed >= 12 && groundSpeed < 45) return CONTEXTS.TRANSITION;
-  if (!onGround && (bank > 35 || pitch > 25 || abs(vs) > 1200)) return CONTEXTS.RECOVERY;
   if (vs > 350) return CONTEXTS.CLIMB;
   if (vs < -350) return CONTEXTS.DESCENT;
   return CONTEXTS.CRUISE;
