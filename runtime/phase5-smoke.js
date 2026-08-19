@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { AdaptiveController, MODES } = require('./adaptive-control.js');
 const { AIRCRAFT_TYPES, CONTEXTS, evaluateContext } = require('./context-task-engine.js');
+const { FlightAssistSession } = require('./flight-assist-session.js');
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -43,6 +44,22 @@ function testHoverContext() {
   assert(result.controls.includes('cyclic') && result.controls.includes('collective') && result.controls.includes('pedals'), 'Hover controls must expose cyclic/collective/pedals');
 }
 
+function testRecoveryPriority() {
+  const result = evaluateContext({
+    aircraftType: AIRCRAFT_TYPES.HELICOPTER,
+    onGround: false,
+    altitudeAglFt: 60,
+    groundSpeedKt: 3,
+    verticalSpeedFpm: -300,
+    yawRateDegS: 9,
+    bankDeg: 42,
+    pitchDeg: 4,
+  });
+
+  assert(result.context === CONTEXTS.RECOVERY, `Expected RECOVERY to outrank HOVER, got ${result.context}`);
+  assert(result.tasks.some((item) => item.id === 'RECOVER_ATTITUDE'), 'Recovery should surface attitude recovery first');
+}
+
 function testCruiseContext() {
   const result = evaluateContext({
     aircraftType: AIRCRAFT_TYPES.FIXED_WING,
@@ -72,12 +89,38 @@ function testKeyboardProfile() {
   assert(profile.fixedWing.configuration.G === 'LandingGear_Toggle', 'Landing gear binding missing');
 }
 
+function testFlightAssistSession() {
+  const session = new FlightAssistSession({
+    aircraftType: AIRCRAFT_TYPES.HELICOPTER,
+    mode: MODES.HELI_LAB,
+  });
+
+  const tick = session.tick(
+    { axes: [0.02, 0.15, 0, 0] },
+    {
+      onGround: false,
+      altitudeAglFt: 30,
+      groundSpeedKt: 1,
+      verticalSpeedFpm: -180,
+      yawRateDegS: 5.5,
+      bankDeg: 2,
+      pitchDeg: 1,
+    },
+  );
+
+  assert(tick.decision.context === CONTEXTS.HOVER, 'Session should infer HOVER from telemetry');
+  assert(tick.assist.mode === MODES.HELI_LAB, 'Session should preserve controller mode');
+  assert(Array.isArray(tick.outputFrame.axes), 'Session should return an output frame');
+}
+
 function run() {
   testAdaptiveController();
   testHoverContext();
+  testRecoveryPriority();
   testCruiseContext();
   testKeyboardProfile();
-  console.log('OK Phase 5 smoke: adaptive control + context engine + keyboard cockpit profile');
+  testFlightAssistSession();
+  console.log('OK Phase 5 smoke: adaptive control + context engine + session + keyboard cockpit profile');
 }
 
 if (require.main === module) run();
