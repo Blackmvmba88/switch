@@ -241,9 +241,15 @@ async function focusGameWindow() {
 }
 
 async function main() {
-  const command = process.argv[2];
+  const rawCommand = process.argv[2];
+  const command = ["game-on", "gaming-on"].includes(rawCommand)
+    ? "play"
+    : ["game-off", "gaming-off"].includes(rawCommand)
+      ? "close"
+      : rawCommand;
+
   if (!command || ["status", "doctor", "verify", "ready", "focus", "open", "work", "play", "close"].indexOf(command) === -1) {
-    console.error("usage: bmctl <status|doctor|verify|ready|focus|open|work|play|close>");
+    console.error("usage: bmctl <status|doctor|verify|ready|focus|open|work|play|close|game-on|game-off>");
     process.exit(2);
   }
 
@@ -356,6 +362,7 @@ async function main() {
     };
     saveState(state);
     const ok = Boolean(api.ok && stack.ok && connect.ok);
+    if (ok) setDesktopHandoffGameActive(true);
     console.log(JSON.stringify({
       ok,
       mode: "open",
@@ -370,6 +377,7 @@ async function main() {
   }
 
   if (command === "work") {
+    setDesktopHandoffGameActive(false);
     console.log(JSON.stringify({ ok: true, mode: "work", action: "prepared" }, null, 2));
     process.exit(0);
   }
@@ -395,6 +403,7 @@ async function main() {
     };
     saveState(state);
     const ok = Boolean(api.ok && stack.ok && connect.ok && runtimeAfter.ok && runtimeAfter.body?.runtime?.active === true);
+    if (ok) setDesktopHandoffGameActive(true);
     console.log(JSON.stringify({
       ok,
       mode: "play",
@@ -411,6 +420,7 @@ async function main() {
   }
 
   if (command === "close") {
+    setDesktopHandoffGameActive(false);
     const before = await requestJson("/api/v1/runtime");
     const closeResult = await requestJsonWithMethod("/api/v1/game/close", "POST", { source: "bmctl", label: "close" });
     const runtimeShutdown = await runScript(CLOSE_RUNTIME_SCRIPT, []);
