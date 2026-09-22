@@ -12,7 +12,19 @@ const START_API_SCRIPT = process.env.BMCTL_START_API_SCRIPT || path.join(ROOT, "
 const PLAY_STACK_SCRIPT = process.env.BMCTL_PLAY_STACK_SCRIPT || path.join(ROOT, "play-xcloud-cdp-bridge.sh");
 const CLOSE_RUNTIME_SCRIPT = process.env.BMCTL_CLOSE_RUNTIME_SCRIPT || path.join(process.env.HOME || "", "Library/Application Support/BlackMambaInput/close-runtime.sh");
 const STOP_API_SCRIPT = process.env.BMCTL_STOP_API_SCRIPT || path.join(ROOT, "stop-api.sh");
-const HTTP_TIMEOUT_MS = Number(process.env.BMCTL_HTTP_TIMEOUT_MS || 5000);
+const HTTP_TIMEOUT_MS = Number(process.env.BMCTL_HTTP_TIMEOUT_MS || 5000);\nconst GAME_MARKER_PATH = process.env.BLACKMAMBA_GAME_ACTIVE_FILE || "/tmp/blackmamba-game-active";
+
+function setDesktopHandoffGameActive(active) {
+  try {
+    if (active) {
+      fs.writeFileSync(GAME_MARKER_PATH, `${new Date().toISOString()}\n`);
+    } else if (fs.existsSync(GAME_MARKER_PATH)) {
+      fs.unlinkSync(GAME_MARKER_PATH);
+    }
+  } catch {
+    // Desktop handoff is advisory and must never break the gaming runtime.
+  }
+}
 
 function loadState() {
   try {
