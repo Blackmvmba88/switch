@@ -6,6 +6,7 @@ APP_ROOT="${HOME}/Library/Application Support/BlackMambaInput"
 DEBUG_PORT="${DEBUG_PORT:-9224}"
 PROFILE_DIR="${PROFILE_DIR:-/tmp/blackmamba-xcloud-cdp-profile}"
 INCLUDE_APP="${1:-}"
+GAME_MARKER_PATH="${BLACKMAMBA_GAME_ACTIVE_FILE:-/tmp/blackmamba-game-active}"
 
 stop_agent() {
   local label="$1"
@@ -36,6 +37,7 @@ kill_matching() {
 }
 
 echo "== cerrando BlackMamba game runtime =="
+rm -f "${GAME_MARKER_PATH}"
 
 stop_agent "com.blackmamba.xcloud-bridge"
 stop_agent "com.blackmamba.hid-live-source"
