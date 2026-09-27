@@ -1,0 +1,75 @@
+{
+  "schema": "blackmamba.flight-keyboard.semantic.v1",
+  "description": "Experimental keyboard-as-cockpit semantic map for Phase 5. Keys represent pilot intent and may be remapped later without changing the semantic action names.",
+  "principles": {
+    "semanticFirst": true,
+    "pilotOverride": true,
+    "contextLayers": true,
+    "trainingNotCertification": true
+  },
+  "global": {
+    "Tab": "ContextLayer_Next",
+    "Escape": "PilotOverride_Manual",
+    "Space": "FreezeInspect_Toggle"
+  },
+  "fixedWing": {
+    "flight": {
+      "W": "Pitch_Down",
+      "S": "Pitch_Up",
+      "A": "Roll_Left",
+      "D": "Roll_Right",
+      "Q": "Rudder_Left",
+      "E": "Rudder_Right"
+    },
+    "power": {
+      "ArrowUp": "Throttle_Increase",
+      "ArrowDown": "Throttle_Decrease",
+      "R": "PitchTrim_NoseUp",
+      "F": "PitchTrim_NoseDown"
+    },
+    "configuration": {
+      "Z": "Flaps_Decrease",
+      "X": "Flaps_Increase",
+      "G": "LandingGear_Toggle",
+      "B": "SpeedBrake_Toggle"
+    },
+    "navigationAssist": {
+      "P": "Autopilot_MasterToggle",
+      "H": "HeadingHold_Toggle",
+      "L": "AltitudeHold_Toggle",
+      "V": "VerticalMode_Toggle"
+    }
+  },
+  "helicopter": {
+    "cyclic": {
+      "W": "Cyclic_Forward",
+      "S": "Cyclic_Back",
+      "A": "Cyclic_Left",
+      "D": "Cyclic_Right"
+    },
+    "pedals": {
+      "Q": "Pedal_Left",
+      "E": "Pedal_Right"
+    },
+    "collective": {
+      "ArrowUp": "Collective_Increase",
+      "ArrowDown": "Collective_Decrease"
+    },
+    "assist": {
+      "P": "HeliSAS_Toggle",
+      "H": "HoverReference_Toggle",
+      "R": "TrimReference_Capture",
+      "F": "TrimReference_Clear"
+    }
+  },
+  "contexts": {
+    "TAKEOFF": ["Throttle", "Rudder", "Pitch", "Roll", "Gear", "Flaps", "Trim"],
+    "CLIMB": ["Pitch", "Roll", "Yaw", "Throttle", "Trim", "Heading"],
+    "CRUISE": ["Pitch", "Roll", "Yaw", "Throttle", "Trim", "Heading", "Altitude"],
+    "APPROACH": ["Pitch", "Roll", "Yaw", "Throttle", "Flaps", "Gear", "Trim"],
+    "LANDING": ["Pitch", "Roll", "Yaw", "Throttle", "Brakes", "Flaps", "Gear"],
+    "HOVER": ["Cyclic", "Collective", "Pedals"],
+    "TRANSITION": ["Cyclic", "Collective", "Pedals", "Trim"],
+    "RECOVERY": ["Cyclic", "Collective", "Pedals", "Power"]
+  }
+}
