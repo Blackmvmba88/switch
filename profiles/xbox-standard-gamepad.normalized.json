@@ -1,0 +1,49 @@
+{
+  "profileVersion": 1,
+  "generatedAt": "2026-09-14T16:00:00Z",
+  "device": {
+    "id": "Xbox Controller (standard Gamepad mapping)",
+    "mapping": "standard",
+    "buttons": 17,
+    "axes": 4
+  },
+  "layout": "xbox-standard",
+  "controllerFamily": "xbox",
+  "dpadMode": "buttons",
+  "triggerMode": "buttons",
+  "semantic": {
+    "A": { "source": "B0", "kind": "button", "index": 0 },
+    "B": { "source": "B1", "kind": "button", "index": 1 },
+    "X": { "source": "B2", "kind": "button", "index": 2 },
+    "Y": { "source": "B3", "kind": "button", "index": 3 },
+    "LB": { "source": "B4", "kind": "button", "index": 4 },
+    "RB": { "source": "B5", "kind": "button", "index": 5 },
+    "LT": { "source": "B6", "kind": "button", "index": 6 },
+    "RT": { "source": "B7", "kind": "button", "index": 7 },
+    "Back": { "source": "B8", "kind": "button", "index": 8 },
+    "Start": { "source": "B9", "kind": "button", "index": 9 },
+    "L3": { "source": "B10", "kind": "button", "index": 10 },
+    "R3": { "source": "B11", "kind": "button", "index": 11 },
+    "DPad_Up": { "source": "B12", "kind": "button", "index": 12 },
+    "DPad_Down": { "source": "B13", "kind": "button", "index": 13 },
+    "DPad_Left": { "source": "B14", "kind": "button", "index": 14 },
+    "DPad_Right": { "source": "B15", "kind": "button", "index": 15 },
+    "Guide": { "source": "B16", "kind": "button", "index": 16 },
+    "LX": { "source": "A0", "kind": "axis", "index": 0 },
+    "LY": { "source": "A1", "kind": "axis", "index": 1 },
+    "RX": { "source": "A2", "kind": "axis", "index": 2 },
+    "RY": { "source": "A3", "kind": "axis", "index": 3 }
+  },
+  "ranges": {
+    "A0": [-1, 1],
+    "A1": [-1, 1],
+    "A2": [-1, 1],
+    "A3": [-1, 1]
+  },
+  "deadzones": {
+    "A0": 0.08,
+    "A1": 0.08,
+    "A2": 0.08,
+    "A3": 0.08
+  }
+}
