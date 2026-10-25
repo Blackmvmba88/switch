@@ -1,0 +1,11 @@
+.venv/
+.build/
+__pycache__/
+validation/
+sessions/
+logs/
+tessdata/
+*.jsonl
+status.json
+.env
+.env.*
