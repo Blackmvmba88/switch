@@ -32,7 +32,7 @@ def classify(text, start_patterns=()):
       ('paused',('seguir jugando','continue playing','resume game','reanudar','juego en pausa','pause menu')),
       ('menu',('abandon mission?','quit mission?','abandonar la mision?','salir de la mision?')),
       ('mission_failed',('mission failed','mision fallida','mision fracasada','you crashed','te has estrellado')),
-      ('results',('mission completed','mission complete','mision completada','mision cumplida','mission results','resultados de la mision')),
+      ('results',('mission completed','mission complete','mision completada','mision cumplida','mission results','resultados de la mision','actividad completada','activity completed','vuelo completado','flight completed')),
       ('abandoned',('mission abandoned','mision abandonada')),
       ('loading',('loading','cargando')),
       ('menu',('ready to fly','listo para volar','start mission','iniciar mision'))]
@@ -40,7 +40,12 @@ def classify(text, start_patterns=()):
         for phrase in phrases:
             if phrase in text:
                 return signal, phrase
-    # No generic cockpit/altitude heuristic: calibrate a visible active-mission cue.
+    # The observed H125 mission HUD combines task steps and flight instruments.
+    task_panel = 'pasos de la mision' in text or 'mission steps' in text
+    instruments = sum(word in text for word in ('airspeed','altitude','power'))
+    if task_panel and instruments >= 2:
+        return 'pilot_control', 'active-mission-HUD: task steps + flight instruments'
+    # Bare cockpit instruments never establish a mission boundary.
     for phrase in start_patterns:
         phrase=normalized(phrase)
         if phrase and phrase in text:

@@ -11,6 +11,10 @@ class VisionTest(unittest.TestCase):
         self.assertEqual(classify('ALT 3000 IAS 100')[0],'unknown')
     def test_actual_h125_pause_menu(self):
         self.assertEqual(classify('Reiniciar Finalizar vuelo Configuración Menú principal')[0],'paused')
+    def test_actual_h125_active_hud(self):
+        self.assertEqual(classify('Pasos de la misión AIRSPEED ALTITUDE POWER')[0],'pilot_control')
+    def test_hud_without_mission_is_unknown(self):
+        self.assertEqual(classify('AIRSPEED ALTITUDE POWER')[0],'unknown')
     def test_explicit_cues(self):
         self.assertEqual(classify('Misión completada')[0],'results')
         self.assertEqual(classify('Mission failed')[0],'mission_failed')
