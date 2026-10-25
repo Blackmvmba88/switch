@@ -4,7 +4,7 @@ SOURCE_DIR="${0:A:h}"
 RUNTIME_DIR="$HOME/Flight-Observer"
 mkdir -p "$RUNTIME_DIR/native" "$RUNTIME_DIR/tessdata"
 if [[ "$SOURCE_DIR" != "$RUNTIME_DIR" ]]; then
-  for name in mission_boundaries.py vision_observer.py live_worker.py summarize_session.py requirements.txt build.sh; do
+  for name in mission_boundaries.py vision_observer.py live_worker.py summarize_session.py requirements.txt build.sh test_mission_boundaries.py test_vision_observer.py validate_vision.py report_watch.py; do
     cp "$SOURCE_DIR/$name" "$RUNTIME_DIR/$name"
   done
   cp "$SOURCE_DIR/native/FlightObserver.swift" "$RUNTIME_DIR/native/FlightObserver.swift"

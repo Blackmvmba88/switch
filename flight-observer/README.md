@@ -41,7 +41,7 @@ Cada ejecución crea `~/Flight-Observer/sessions/<UUID>/` con:
 
 ## Calibración y límites
 
-`~/Flight-Observer/vision-config.json` permite configurar `active_cues` con texto observado exclusivamente durante una misión activa. La configuración inicial está vacía: no se inventa una señal de inicio. Un botón de inicio no demuestra que el piloto ya tenga control. Las señales de pausa y desconexión tienen prioridad.
+`~/Flight-Observer/vision-config.json` permite configurar `active_cues` con texto observado exclusivamente durante una misión activa. La lista inicial está vacía. El HUD observado del H125 se reconoce cuando combina «Pasos de la misión» y al menos dos indicadores entre AIRSPEED, ALTITUDE y POWER; otros perfiles requieren calibración. Un botón de inicio no demuestra que el piloto ya tenga control. Las señales de pausa y desconexión tienen prioridad.
 
 Las marcas de inicio y final requieren dos observaciones compatibles separadas entre uno y cinco segundos. La hora registrada es la primera observación, no una medición exacta del cambio del simulador. La primera observación activa puede corresponder a una misión ya empezada. Los huecos, el OCR desconocido y la carga interrumpen la observación; no concluyen una misión. Un final requiere texto terminal reconocido, nunca soltar el mando o aterrizar por deducción.
 
@@ -50,6 +50,7 @@ El texto en pantalla es una heurística; la evidencia visual permite revisar los
 ## Validación y revisión
 
 ```sh
+cd ~/Flight-Observer
 .venv/bin/python -m unittest test_mission_boundaries.py test_vision_observer.py
 .venv/bin/python validate_vision.py
 .venv/bin/python summarize_session.py /ruta/a/sesion
